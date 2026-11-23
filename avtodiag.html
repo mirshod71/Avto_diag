@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1113">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:,">
+<title>AvtoDiag — диагностика и обучение</title>
+<style>
+:root{
+  --bg:#0f1113;--panel:#171a1d;--panel2:#1f2327;--line:#2a2f35;--text:#ece9e3;--muted:#8f969e;
+  --accent:#f2b134;--teal:#3fb6a8;--ok:#4cc38a;--warn:#f2b134;--bad:#ef5b5b;
+  --mono:"JetBrains Mono","Cascadia Mono",Consolas,"Roboto Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 var(--sans)}
+body{padding-top:var(--st)}
+header{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:10px;padding:10px 16px;
+  padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));
+  background:rgba(15,17,19,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px}
+.gauge{width:24px;height:24px;border-radius:50%;border:3px solid var(--accent);border-bottom-color:transparent;position:relative;transform:rotate(45deg)}
+.gauge::after{content:"";position:absolute;left:50%;top:50%;width:9px;height:3px;background:var(--text);transform-origin:0 50%;transform:translate(0,-50%) rotate(-140deg);border-radius:2px}
+.pill{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);padding:5px 10px;border:1px solid var(--line);border-radius:99px;max-width:58vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:8px;height:8px;border-radius:50%;background:#555;flex:none}
+.pill.on{color:var(--text)} .pill.on .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+main{max-width:860px;margin:0 auto;padding:16px 14px calc(92px + var(--sb))}
+.view{display:none} .view.active{display:block;animation:fade .18s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+h2{font-size:21px;margin:2px 0 4px} .sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+h3{font-size:16px;margin:18px 0 8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;margin-bottom:12px}
+nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:10;display:grid;grid-template-columns:repeat(5,1fr);
+  background:rgba(20,23,26,.97);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding-bottom:var(--sb)}
+nav.bottom button{background:none;border:none;color:var(--muted);font:inherit;font-size:11px;padding:8px 2px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+nav.bottom svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav.bottom button.active{color:var(--accent)}
+label.l{display:block;font-size:11.5px;color:var(--muted);margin:12px 0 6px;text-transform:uppercase;letter-spacing:.6px}
+select,input[type=text]{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:12px;border-radius:10px;font:inherit;font-size:16px}
+.ctype{display:grid;gap:8px}
+.ctype button{display:flex;align-items:center;gap:12px;text-align:left;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px;font:inherit;cursor:pointer}
+.ctype button b{display:block;font-size:15px} .ctype button small{color:var(--muted);font-size:12.5px;line-height:1.35;display:block}
+.ctype button.active{border-color:var(--accent);background:#2a2416}
+.ctype button:disabled{opacity:.45}
+.ctype .ic{width:36px;height:36px;border-radius:10px;background:#262b30;display:grid;place-items:center;flex:none;font-size:17px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:#1a1405;border:none;padding:13px 18px;border-radius:11px;font:inherit;font-weight:650;cursor:pointer;min-height:46px}
+.btn.full{width:100%;margin-top:14px}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line);font-weight:500}
+.btn.danger{background:transparent;color:var(--bad);border:1px solid #5a2a2a;font-weight:500}
+.btn.teal{background:var(--teal);color:#05201c}
+.btn:disabled{opacity:.55}
+.btn .spin{width:15px;height:15px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .7s linear infinite;display:none}
+.btn.busy .spin{display:inline-block} @keyframes sp{to{transform:rotate(360deg)}}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>.btn{flex:1}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:10px 12px;min-width:0}
+.tile b{display:block;font-size:10.5px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.tile span{font-family:var(--mono);font-size:14px;word-break:break-all}
+.tile.wide{grid-column:1/-1}
+.note{border-left:3px solid var(--teal);background:#12201e;padding:10px 12px;border-radius:0 10px 10px 0;font-size:14px;color:#cde6e2;margin:12px 0 0}
+.note.warn{border-color:var(--warn);background:#221d10;color:#efe1bf}
+details.help{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:12px}
+details.help summary{padding:14px 15px;cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between}
+details.help summary::after{content:"＋";color:var(--muted)} details.help[open] summary::after{content:"－"}
+details.help .in{padding:0 15px 14px;font-size:14px;color:#d6d3cd}
+details.help ol{padding-left:20px;margin:6px 0} details.help li{margin-bottom:6px}
+code{font-family:var(--mono);background:#262b30;padding:1px 5px;border-radius:5px;font-size:.9em;color:#ffd58a}
+.mil{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;margin-bottom:12px;font-weight:600;font-size:14px}
+.mil.on{background:#2a1a10;border:1px solid #6b3a12;color:#ffb066} .mil.off{background:#112219;border:1px solid #1f4a33;color:var(--ok)}
+.dtc{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin-bottom:8px}
+.dtc .top{display:flex;align-items:baseline;gap:10px}
+.dtc .code{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent)}
+.dtc .ecu{font-size:12px;color:var(--teal);margin-left:auto}
+.dtc .d{margin-top:3px} .dtc .h{font-size:13px;color:var(--muted);margin-top:6px} .dtc .h::before{content:"Что проверить: ";color:var(--text)}
+.grp p{color:var(--muted);font-size:13px;margin:-4px 0 8px}
+.okline{color:var(--ok);font-size:14px;padding:10px 12px;background:var(--panel2);border-radius:10px;border:1px solid var(--line)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-top:12px;scrollbar-width:none}
+.chip{flex:none;background:var(--panel2);border:1px solid var(--line);color:var(--muted);padding:7px 11px;border-radius:99px;font-size:13px;cursor:pointer;white-space:nowrap}
+.chip.on{color:var(--text);border-color:var(--teal);background:#11221f}
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(min-width:640px){.gauges{grid-template-columns:repeat(3,1fr)}}
+.g{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:11px 12px}
+.g .n{font-size:12px;color:var(--muted);line-height:1.3;min-height:31px}
+.g .v{font-family:var(--mono);font-size:25px;font-weight:650;line-height:1.15;white-space:nowrap}
+.g .u{font-size:12px;color:var(--muted);margin-left:3px;font-family:var(--sans)}
+.g .h{font-size:11px;color:var(--muted);line-height:1.3;margin-top:3px;min-height:28px}
+.g canvas{width:100%;height:32px;display:block;margin-top:6px}
+.g.warn{border-color:#6b5414}.g.warn .v{color:var(--warn)} .g.bad{border-color:#6b2020}.g.bad .v{color:var(--bad)}
+.g.txt .v{font-size:13.5px;font-family:var(--sans);white-space:normal;font-weight:550}
+.term{background:#0a0c0d;border:1px solid var(--line);border-radius:12px;height:46vh;overflow:auto;font-family:var(--mono);font-size:12.5px;padding:9px 10px}
+.term div{white-space:pre-wrap;word-break:break-all} .term .TX{color:var(--accent)} .term .sys{color:var(--teal)} .term .err{color:var(--bad)} .term .t{color:#4b535b;margin-right:6px}
+.qc{display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding-bottom:4px}
+.qc button{flex:none;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:8px 10px;font:inherit;font-size:12.5px;cursor:pointer;text-align:left}
+.qc code{display:block;background:none;padding:0}
+/* обучение */
+.progress{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;margin:8px 0 4px}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--accent));border-radius:99px;transition:width .4s}
+.mod{margin-bottom:14px} .mod h3{display:flex;align-items:center;gap:8px;margin:16px 0 8px}
+.mod h3 .mi{width:28px;height:28px;border-radius:8px;background:#262b30;display:grid;place-items:center;font-size:13px}
+.les{display:flex;align-items:center;gap:12px;width:100%;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px 13px;margin-bottom:7px;font:inherit;text-align:left;cursor:pointer}
+.les .num{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:13px;color:var(--muted);flex:none}
+.les.done .num{border-color:var(--ok);background:var(--ok);color:#06210f}
+.les small{display:block;color:var(--muted);font-size:12px}
+.lesson{font-size:15.5px;line-height:1.6}
+.lesson h4{font-size:16px;margin:20px 0 6px;color:#fff}
+.lesson ul,.lesson ol{padding-left:22px} .lesson li{margin-bottom:6px}
+.lesson .tip{background:#12201e;border:1px solid #1f3e3a;border-radius:12px;padding:12px 13px;margin:14px 0;font-size:14.5px}
+.lesson .tip.warn{background:#221d10;border-color:#4d3f17}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}
+.tbl td{border-bottom:1px solid var(--line);padding:8px 6px;vertical-align:top}
+.tbl td:first-child{white-space:nowrap;padding-right:12px}
+.code-parts td:first-child{font-family:var(--mono);font-size:20px;color:var(--accent);text-align:center}
+.flow{display:flex;align-items:center;gap:6px;margin:12px 0}
+.flow div{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 6px;text-align:center}
+.flow div b{display:block;font-size:14px} .flow div span{font-size:12px;color:var(--muted)} .flow i{color:var(--accent);font-style:normal}
+ol.steps{counter-reset:s;list-style:none;padding:0}
+ol.steps li{counter-increment:s;position:relative;padding-left:36px;margin-bottom:10px}
+ol.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:25px;height:25px;border-radius:50%;background:#2a2416;color:var(--accent);display:grid;place-items:center;font-size:13px;font-weight:700}
+.quiz{margin-top:18px}
+.q{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px;margin-bottom:10px}
+.q .qt{font-weight:600;margin-bottom:8px}
+.q button{display:block;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:11px 12px;border-radius:10px;margin-top:6px;font:inherit;cursor:pointer}
+.q button.right{border-color:var(--ok);background:#112219} .q button.wrong{border-color:var(--bad);background:#2b1414}
+.q .ex{font-size:13.5px;color:#cfd6dc;margin-top:9px;padding:9px 11px;background:#1b1f23;border-radius:9px}
+.casehead{font-size:12px;color:var(--teal);text-transform:uppercase;letter-spacing:.5px}
+.w{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0}
+.w .out{margin-top:10px;font-size:14px}
+.w .out .big{font-family:var(--mono);font-size:22px;color:var(--accent)}
+.pin{cursor:pointer} .pin circle{transition:r .15s}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.seg2{display:flex;gap:6px;flex-wrap:wrap}
+.seg2 button{background:#262b30;border:1px solid var(--line);color:var(--muted);border-radius:99px;padding:7px 11px;font:inherit;font-size:13px;cursor:pointer}
+.seg2 button.active{color:var(--text);border-color:var(--accent)}
+.frame{font-family:var(--mono);font-size:13px;padding:6px 8px;background:#0e1012;border-radius:7px;margin:4px 0;overflow-x:auto;white-space:nowrap}
+.frame .id{color:var(--muted)} .frame .pci{color:#0f1113;background:var(--accent);padding:0 3px;border-radius:3px} .frame .dt{color:#cfe7e3}
+.toast{position:fixed;left:50%;bottom:calc(80px + var(--sb));transform:translateX(-50%);background:#2b1414;border:1px solid #6b2020;color:#ffd2d2;padding:11px 15px;border-radius:12px;max-width:92vw;width:max-content;display:none;z-index:40;font-size:14px}
+.toast.ok{background:#112219;border-color:#1f4a33;color:#c9f2db}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;justify-content:center;z-index:50}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;padding:20px 18px calc(18px + var(--sb));width:100%;max-width:520px}
+.back{background:none;border:none;color:var(--teal);font:inherit;padding:4px 0 10px;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="gauge"></div>AvtoDiag</div>
+  <div class="pill" id="pill"><span class="dot"></span><span id="pillText">Не подключено</span></div>
+</header>
+
+<main>
+<!-- ===================== ПОДКЛЮЧЕНИЕ ===================== -->
+<section class="view active" id="v-home">
+  <h2>Подключение</h2>
+  <p class="sub">Вставьте ELM327 в разъём OBD под рулём, включите зажигание.</p>
+  <div class="note warn" id="envNote" hidden></div>
+  <div class="card" id="connectCard">
+    <label class="l" style="margin-top:0">Автомобиль</label>
+    <select id="model">
+      <option>Chevrolet Cobalt</option><option>Chevrolet Gentra</option><option>Chevrolet Spark</option>
+      <option>Chevrolet Nexia 3</option><option>Chevrolet Nexia 2</option><option>Chevrolet Lacetti</option>
+      <option>Chevrolet Malibu</option><option>Chevrolet Tracker</option><option>Chevrolet Onix</option>
+      <option>Chevrolet Captiva</option><option>Chevrolet Damas / Labo</option><option>Другая машина</option>
+    </select>
+    <label class="l">Адаптер</label>
+    <div class="ctype" id="ctype">
+      <button data-v="demo" class="active"><span class="ic">▶</span><span><b>Демо-машина</b><small>Виртуальный Cobalt с неисправностями — для обучения</small></span></button>
+      <button data-v="serial"><span class="ic">ᛒ</span><span><b>Bluetooth (обычный) / USB</b><small id="serialInfo">Большинство дешёвых ELM327. Сначала сопрягите адаптер в настройках Bluetooth телефона</small></span></button>
+      <button data-v="ble"><span class="ic">ᛒ</span><span><b>Bluetooth 4.0 (BLE)</b><small id="bleInfo">Vgate iCar Pro BLE, Veepeak BLE, V-Link и др.</small></span></button>
+    </div>
+    <button class="btn full" id="btnConnect"><span class="spin"></span><span>Подключиться</span></button>
+    <button class="btn ghost full" id="btnDisconnect" hidden>Отключиться</button>
+  </div>
+  <div class="card" id="infoCard" hidden>
+    <div class="tiles" id="tiles"></div>
+    <div id="modelNote"></div>
+  </div>
+  <details class="help"><summary>Как подключить настоящий адаптер</summary><div class="in">
+    <ol>
+      <li>Откройте приложение в <b>Chrome на Android</b> (или Chrome/Edge на компьютере) по прямой ссылке — см. «Как установить на телефон».</li>
+      <li><b>Обычный Bluetooth:</b> в настройках телефона → Bluetooth найдите адаптер (OBDII, V-LINK…), PIN обычно <code>1234</code> или <code>0000</code>. Затем здесь выберите «Bluetooth (обычный)» и адаптер в списке.</li>
+      <li><b>BLE-адаптер:</b> сопрягать заранее не нужно — выберите «Bluetooth 4.0» и адаптер в появившемся окне.</li>
+      <li>Включите зажигание. Первое подключение может занять до 15 секунд — адаптер ищет протокол.</li>
+      <li>Wi-Fi адаптеры браузер не поддерживает — для них используйте версию для компьютера.</li>
+    </ol></div></details>
+  <details class="help"><summary>Как установить на телефон</summary><div class="in">
+    <p>Для работы с Bluetooth страница должна открываться по <b>https</b> прямо в Chrome. Бесплатный способ — GitHub Pages:</p>
+    <ol>
+      <li>Зарегистрируйтесь на github.com (можно с телефона).</li>
+      <li>Создайте репозиторий, например <code>avtodiag</code>, тип Public.</li>
+      <li>Загрузите файл приложения (<code>avtodiag.html</code>) и переименуйте его в <code>index.html</code>.</li>
+      <li>Settings → Pages → Branch: <code>main</code> → Save. Через минуту появится адрес вида <code>https://ваше-имя.github.io/avtodiag</code>.</li>
+      <li>Откройте его в Chrome → меню ⋮ → <b>«Добавить на главный экран»</b>. Получится значок как у приложения.</li>
+    </ol>
+    <p>На iPhone Safari не поддерживает Bluetooth для сайтов. Для BLE-адаптеров можно попробовать браузер Bluefy. Демо и обучение работают везде.</p>
+  </div></details>
+</section>
+
+<!-- ===================== ОШИБКИ ===================== -->
+<section class="view" id="v-dtc">
+  <h2>Ошибки</h2>
+  <p class="sub">Код — это симптом, а не сломанная деталь. Читайте подсказки.</p>
+  <div class="row" style="margin-bottom:12px">
+    <button class="btn" id="btnRead"><span class="spin"></span><span>Прочитать</span></button>
+    <button class="btn danger" id="btnClear">Стереть</button>
+  </div>
+  <div id="milBox"></div>
+  <div id="dtcList"><div class="card" style="color:var(--muted);text-align:center">Подключитесь и нажмите «Прочитать»</div></div>
+</section>
+
+<!-- ===================== ЖИВЫЕ ДАННЫЕ ===================== -->
+<section class="view" id="v-live">
+  <h2>Живые данные</h2>
+  <p class="sub" id="liveSub">Показания датчиков в реальном времени.</p>
+  <div class="card">
+    <div class="row">
+      <button class="btn teal" id="btnLive">▶ Старт</button>
+      <button class="btn ghost" id="btnRec">● Запись</button>
+      <button class="btn ghost" id="btnCsv">CSV</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px" id="rate">Выберите параметры ниже</div>
+    <div class="chips" id="pidChips"></div>
+  </div>
+  <div class="gauges" id="gauges"></div>
+</section>
+
+<!-- ===================== ОБУЧЕНИЕ ===================== -->
+<section class="view" id="v-learn">
+  <div id="learnHome">
+    <h2>Обучение</h2>
+    <p class="sub">Курс диагноста: от устройства двигателя до протоколов и прошивки.</p>
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><b>Ваш прогресс</b><span id="progText" style="color:var(--muted);font-size:13px"></span></div>
+      <div class="progress"><i id="progBar" style="width:0"></i></div>
+    </div>
+    <div id="modules"></div>
+    <div class="mod"><h3><span class="mi">🔧</span>Практика: найди неисправность</h3>
+      <p class="sub" style="margin-top:-4px">Реальные ситуации — по данным сканера определите причину.</p>
+      <div id="caseList"></div></div>
+    <div class="mod"><h3><span class="mi">🧰</span>Инструменты</h3>
+      <button class="les" data-tool="dtc"><span class="num">P</span><span>Расшифровщик кодов ошибок<small>Что означает каждый символ кода</small></span></button>
+      <button class="les" data-tool="hex"><span class="num">0x</span><span>Расшифровщик ответов<small>Байты ответа → понятные значения</small></span></button>
+      <button class="les" data-tool="pinout"><span class="num">16</span><span>Распиновка OBD-II<small>Назначение 16 контактов разъёма</small></span></button>
+      <button class="les" data-tool="trims"><span class="num">%</span><span>Симулятор топливных коррекций<small>Как неисправности меняют LTFT</small></span></button>
+    </div>
+  </div>
+  <div id="learnPage" hidden>
+    <button class="back" id="learnBack">‹ Назад к курсу</button>
+    <div id="learnContent"></div>
+  </div>
+</section>
+
+<!-- ===================== ТЕРМИНАЛ ===================== -->
+<section class="view" id="v-term">
+  <h2>Терминал</h2>
+  <p class="sub">Команды к адаптеру и ответы машины — как они есть.</p>
+  <div class="term" id="termOut"></div>
+  <div class="row" style="margin-top:8px;flex-wrap:nowrap">
+    <input type="text" id="termIn" placeholder="010C или ATRV" autocomplete="off" autocapitalize="characters" style="font-family:var(--mono)">
+    <button class="btn" id="btnSend" style="flex:none">→</button>
+  </div>
+  <div class="qc" id="quick"></div>
+</section>
+</main>
+
+<nav class="bottom" id="nav">
+  <button data-v="home" class="active"><svg viewBox="0 0 24 24"><path d="M9 7V3M15 7V3M7 7h10v5a5 5 0 0 1-10 0z"/><path d="M12 17v4"/></svg>Связь</button>
+  <button data-v="dtc"><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg>Ошибки</button>
+  <button data-v="live"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 5-7 4 4"/><path d="M3 21h18"/></svg>Данные</button>
+  <button data-v="learn"><svg viewBox="0 0 24 24"><path d="M2 8l10-5 10 5-10 5z"/><path d="M6 10v5c3 3 9 3 12 0v-5"/></svg>Учёба</button>
+  <button data-v="term"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/></svg>Терминал</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="box">
+  <h2>Стереть ошибки?</h2>
+  <p class="sub" style="margin-top:8px">Двигатель <b>заглушен</b>, зажигание включено. Сначала запишите коды: стоп-кадры пропадут,
+    готовность систем сбросится. Если причина не устранена, ошибка вернётся.</p>
+  <div class="row"><button class="btn ghost" id="mNo">Отмена</button><button class="btn danger" id="mYes">Стереть</button></div>
+</div></div>
+
+<script>
+/* ===================================================================
+   AvtoDiag — ядро: адаптер ELM327, разбор ответов, OBD-II, эмулятор
+   =================================================================== */
+
+const PROTOCOLS = {
+  '1': 'SAE J1850 PWM', '2': 'SAE J1850 VPW', '3': 'ISO 9141-2 (K-Line)',
+  '4': 'ISO 14230-4 KWP (K-Line)', '5': 'ISO 14230-4 KWP быстрая (K-Line)',
+  '6': 'CAN 11 бит 500 кбит/с', '7': 'CAN 29 бит 500 кбит/с',
+  '8': 'CAN 11 бит 250 кбит/с', '9': 'CAN 29 бит 250 кбит/с',
+};
+const CAN_PROTOCOLS = new Set(['6', '7', '8', '9']);
+const HEX_RE = /^[0-9A-F]+$/;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function hexToBytes(s) {
+  if (s.length % 2) s = s.slice(0, -1);
+  const out = [];
+  for (let i = 0; i < s.length; i += 2) out.push(parseInt(s.substr(i, 2), 16));
+  return out;
+}
+const toHex = (arr, sep = ' ') => arr.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(sep);
+
+function cleanLines(raw, sent = '') {
+  const s = sent.replace(/\s/g, '').toUpperCase();
+  return raw.replace(/\r/g, '\n').replace(/>/g, '').split('\n')
+    .map(l => l.trim())
+    .filter(l => l && l.replace(/\s/g, '').toUpperCase() !== s && !l.toUpperCase().startsWith('SEARCHING'));
+}
+
+function isotpReassemble(frames) {
+  const msgs = []; let buf = null, expected = 0;
+  for (const f of frames) {
+    if (!f.length) continue;
+    const kind = f[0] >> 4;
+    if (kind === 0) msgs.push(f.slice(1, 1 + (f[0] & 0x0F)));
+    else if (kind === 1 && f.length >= 2) { expected = ((f[0] & 0x0F) << 8) | f[1]; buf = f.slice(2); }
+    else if (kind === 2 && buf) {
+      buf = buf.concat(f.slice(1));
+      if (buf.length >= expected) { msgs.push(buf.slice(0, expected)); buf = null; }
+    }
+  }
+  if (buf) msgs.push(buf);
+  return msgs;
+}
+
+function parseHeaderless(lines) {
+  const msgs = [], multi = [];
+  for (const ln of lines) {
+    const s = ln.replace(/\s/g, '').toUpperCase();
+    if (s.includes(':')) { const d = s.split(':')[1]; if (HEX_RE.test(d)) multi.push(...hexToBytes(d)); continue; }
+    if (!HEX_RE.test(s) || s.length <= 3) continue;
+    msgs.push(hexToBytes(s));
+  }
+  if (multi.length) msgs.push(multi);
+  return msgs.length ? { ECU: msgs } : {};
+}
+
+/** Разбор строк ответа → { адрес_блока: [сообщения как массивы байт] } */
+function parseResponse(lines, protocol) {
+  protocol = (protocol || '').replace(/^A/, '');
+  const frames = {}, order = [];
+  for (const ln of lines) {
+    const s = ln.replace(/\s/g, '').toUpperCase();
+    if (!HEX_RE.test(s)) continue;
+    let hdr, data;
+    if (protocol === '6' || protocol === '8') {
+      if (s.length < 5 || s[0] !== '7') continue;
+      hdr = s.slice(0, 3); data = s.slice(3);
+    } else if (protocol === '7' || protocol === '9') {
+      if (s.length < 10 || !s.startsWith('18DA')) continue;
+      hdr = s.slice(6, 8); data = s.slice(8);
+    } else {
+      if (s.length < 10) continue;
+      hdr = s.slice(4, 6); data = s.slice(6, -2);
+    }
+    if (!frames[hdr]) { frames[hdr] = []; order.push(hdr); }
+    frames[hdr].push(hexToBytes(data));
+  }
+  if (!order.length) return parseHeaderless(lines);
+  const res = {};
+  for (const h of order) res[h] = CAN_PROTOCOLS.has(protocol) ? isotpReassemble(frames[h]) : frames[h];
+  return res;
+}
+
+const ECU_NAMES = { '7E8': 'Двигатель (ECM)', '7E9': 'АКПП (TCM)', '10': 'Двигатель (ECM)', '18': 'АКПП (TCM)', ECU: 'Блок' };
+const ecuName = h => ECU_NAMES[h] || 'Блок ' + h;
+
+/* ------------------------------------------------------------ адаптер */
+
+class ELM327 {
+  constructor(transport, log) {
+    this.t = transport; this.log = log || (() => {});
+    this.protocol = null; this.protocolDesc = ''; this.version = '';
+    this.queue = Promise.resolve();
+  }
+  raw(cmd, timeout = 4000) {
+    // команды выполняются строго по очереди
+    const run = async () => {
+      this.log('TX', cmd);
+      this.t.buffer = '';
+      await this.t.write(cmd + '\r');
+      const end = Date.now() + timeout;
+      while (Date.now() < end && !this.t.buffer.includes('>')) await sleep(8);
+      const text = this.t.buffer; this.t.buffer = '';
+      cleanLines(text).forEach(l => this.log('RX', l));
+      if (!text.includes('>')) this.log('!!', 'нет ответа (таймаут)');
+      return text;
+    };
+    const p = this.queue.then(run, run);
+    this.queue = p.catch(() => {});
+    return p;
+  }
+  async cmd(c, timeout) { return cleanLines(await this.raw(c, timeout), c); }
+
+  async initialize() {
+    let lines = await this.cmd('ATZ', 3000);
+    let ver = lines.filter(l => /ELM/i.test(l));
+    if (!ver.length) ver = (await this.cmd('ATI')).filter(l => /ELM/i.test(l));
+    if (!ver.length) throw new Error('Адаптер не отвечает как ELM327. Проверьте подключение.');
+    this.version = ver[ver.length - 1];
+    for (const c of ['ATE0', 'ATL0', 'ATS1', 'ATH1', 'ATAT1', 'ATSP0']) await this.cmd(c);
+    lines = await this.cmd('0100', 15000);
+    const j = lines.join(' ').toUpperCase();
+    if (!lines.length || /UNABLE TO CONNECT|NO DATA|BUS INIT|CAN ERROR|STOPPED/.test(j))
+      throw new Error('Адаптер подключён, но машина не отвечает. Включите зажигание и проверьте разъём OBD. Ответ: ' + (j || 'пусто'));
+    const dpn = (await this.cmd('ATDPN')).join('').trim().toUpperCase();
+    this.protocol = dpn.replace(/^A/, '').slice(-1) || null;
+    this.protocolDesc = PROTOCOLS[this.protocol] || dpn;
+    return this;
+  }
+  async query(req, timeout) { return parseResponse(await this.cmd(req, timeout), this.protocol); }
+  async voltage() {
+    for (const l of await this.cmd('ATRV')) { const m = l.toUpperCase().match(/(\d+(?:\.\d+)?)\s*V/); if (m) return +m[1]; }
+    return null;
+  }
+  async restore() { for (const c of ['ATE0', 'ATL0', 'ATS1', 'ATH1']) await this.cmd(c); }
+  close() { try { this.t.close(); } catch (e) {} }
+}
+
+/* ------------------------------------------------------------ OBD-II */
+
+const FUEL_SYSTEM = { 1: 'Разомкнутый контур (холодный)', 2: 'Замкнутый контур (по датчику O2)',
+  4: 'Разомкнутый (нагрузка)', 8: 'Разомкнутый (неисправность)', 16: 'Замкнутый, ошибка датчика' };
+const pct = a => Math.round(a * 1000 / 255) / 10;
+const trim = a => Math.round((a - 128) * 1000 / 128) / 10;
+const range = (lo, hi) => v => (v >= lo && v <= hi ? 'ok' : 'warn');
+const trimState = v => (Math.abs(v) <= 10 ? 'ok' : Math.abs(v) <= 20 ? 'warn' : 'bad');
+
+// pid: [название, ед., формула, ориентир, проверка]
+const PIDS = {
+  0x03: ['Топливная система', '', d => FUEL_SYSTEM[d[0]] || 'код ' + d[0], 'Прогретый: замкнутый контур'],
+  0x04: ['Нагрузка двигателя', '%', d => pct(d[0]), 'Холостые: ~15–35 %'],
+  0x05: ['Температура ОЖ', '°C', d => d[0] - 40, 'Прогретый: ~85–105 °C', range(-40, 108)],
+  0x06: ['Краткосрочная коррекция (STFT)', '%', d => trim(d[0]), 'Около 0, норма ±10 %', trimState],
+  0x07: ['Долгосрочная коррекция (LTFT)', '%', d => trim(d[0]), 'Норма ±10 %; > +15 % — бедно', trimState],
+  0x0B: ['Давление во впуске (MAP)', 'кПа', d => d[0], 'Холостые: ~25–45 кПа'],
+  0x0C: ['Обороты', 'об/мин', d => Math.round((d[0] * 256 + d[1]) / 4), 'Тёплые холостые: ~700–900'],
+  0x0D: ['Скорость', 'км/ч', d => d[0], ''],
+  0x0E: ['Угол опережения', '°', d => d[0] / 2 - 64, 'Холостые: ~5–20°'],
+  0x0F: ['Темп. впускного воздуха', '°C', d => d[0] - 40, 'Близко к уличной'],
+  0x10: ['Расход воздуха (MAF)', 'г/с', d => (d[0] * 256 + d[1]) / 100, 'Холостые 1.2–1.5 л: ~2–4 г/с'],
+  0x11: ['Положение дросселя', '%', d => pct(d[0]), 'Педаль отпущена: ~0–15 %'],
+  0x14: ['Датчик O2 №1 (до катал.)', 'В', d => d[0] / 200, 'Быстро «прыгает» 0.1–0.9 В'],
+  0x15: ['Датчик O2 №2 (после катал.)', 'В', d => d[0] / 200, 'Живой катализатор: ровно ~0.5–0.8 В'],
+  0x1F: ['Время с запуска', 'с', d => d[0] * 256 + d[1], ''],
+  0x21: ['Пробег с Check Engine', 'км', d => d[0] * 256 + d[1], ''],
+  0x2F: ['Уровень топлива', '%', d => pct(d[0]), ''],
+  0x31: ['Пробег после стирания', 'км', d => d[0] * 256 + d[1], ''],
+  0x33: ['Атмосферное давление', 'кПа', d => d[0], 'Ташкент (~450 м): ~95–97'],
+  0x42: ['Напряжение ЭБУ', 'В', d => (d[0] * 256 + d[1]) / 1000, 'Мотор работает: 13.5–14.7 В', range(11.8, 15)],
+  0x46: ['Темп. наружного воздуха', '°C', d => d[0] - 40, ''],
+  0x5C: ['Температура масла', '°C', d => d[0] - 40, ''],
+};
+const DEFAULT_LIVE = [0x0C, 0x05, 0x06, 0x07, 0x14, 0x15, 0x0B, 0x42];
+
+function pick(resp, modeByte, pid) {
+  const keys = Object.keys(resp).sort((a, b) => ((a === '7E8' || a === '10') ? -1 : 0) - ((b === '7E8' || b === '10') ? -1 : 0));
+  for (const h of keys) for (const m of resp[h])
+    if (m[0] === modeByte && (pid === undefined || m[1] === pid)) return m;
+  return null;
+}
+
+const OBD = {
+  async supportedPids(elm) {
+    const sup = new Set(); let base = 0;
+    while (base <= 0xA0) {
+      const m = pick(await elm.query('01' + base.toString(16).padStart(2, '0').toUpperCase()), 0x41, base);
+      if (!m || m.length < 6) break;
+      const bits = ((m[2] << 24) >>> 0) + (m[3] << 16) + (m[4] << 8) + m[5];
+      for (let i = 0; i < 32; i++) if (bits & (2 ** (31 - i))) sup.add(base + i + 1);
+      if (!sup.has(base + 0x20)) break;
+      base += 0x20;
+    }
+    return sup;
+  },
+  async readPid(elm, pid) {
+    const m = pick(await elm.query('01' + pid.toString(16).padStart(2, '0').toUpperCase()), 0x41, pid);
+    if (!m) return null;
+    try { const v = PIDS[pid][2](m.slice(2)); return (typeof v === 'number' && isNaN(v)) ? null : v; } catch (e) { return null; }
+  },
+  async readLive(elm, pids) {
+    const out = [];
+    for (const pid of pids) {
+      const [name, unit, , hint, check] = PIDS[pid];
+      const value = await this.readPid(elm, pid);
+      out.push({ pid, name, unit, value, hint, state: (typeof value === 'number' && check) ? check(value) : '' });
+    }
+    return out;
+  },
+  async milStatus(elm) {
+    const m = pick(await elm.query('0101'), 0x41, 0x01);
+    return m && m.length >= 3 ? { mil: !!(m[2] & 0x80), count: m[2] & 0x7F } : { mil: null, count: null };
+  },
+  decodeDtc(b1, b2) {
+    return 'PCBU'[b1 >> 6] + ((b1 >> 4) & 3) + (b1 & 0xF).toString(16).toUpperCase() +
+      (b2 >> 4).toString(16).toUpperCase() + (b2 & 0xF).toString(16).toUpperCase();
+  },
+  async readDtcs(elm, mode = '03') {
+    const rb = parseInt(mode, 16) + 0x40, resp = await elm.query(mode, 6000);
+    const isCan = CAN_PROTOCOLS.has(elm.protocol), seen = new Set(), out = [];
+    for (const [h, msgs] of Object.entries(resp)) for (const m of msgs) {
+      if (m[0] !== rb) continue;
+      const data = isCan ? m.slice(2) : m.slice(1);
+      for (let i = 0; i + 1 < data.length; i += 2) {
+        if (!data[i] && !data[i + 1]) continue;
+        const code = this.decodeDtc(data[i], data[i + 1]);
+        if (seen.has(h + code)) continue; seen.add(h + code);
+        const [desc, hint] = describeDtc(code);
+        out.push({ code, ecu: h, ecuName: ecuName(h), desc, hint });
+      }
+    }
+    return out;
+  },
+  async clearDtcs(elm) {
+    const r = await elm.query('04', 6000);
+    return Object.values(r).some(ms => ms.some(m => m[0] === 0x44));
+  },
+  async readVin(elm) {
+    const resp = await elm.query('0902', 6000), isCan = CAN_PROTOCOLS.has(elm.protocol);
+    for (const h of Object.keys(resp)) {
+      const ms = resp[h].filter(m => m.length > 2 && m[0] === 0x49 && m[1] === 2);
+      if (!ms.length) continue;
+      const raw = (isCan || ms.length === 1) ? ms[0].slice(3) : ms.sort((a, b) => a[2] - b[2]).flatMap(m => m.slice(3));
+      const vin = raw.filter(c => c >= 48 && c <= 90).map(c => String.fromCharCode(c)).join('');
+      if (vin) return vin.length >= 17 ? vin.slice(-17) : vin;
+    }
+    return null;
+  },
+  decodeVin(vin) {
+    if (!vin || vin.length !== 17) return {};
+    const WMI = { XWB: 'UzAuto Motors / GM Uzbekistan', KL1: 'GM Korea', KLA: 'GM Daewoo (Корея)' };
+    const codes = 'ABCDEFGHJKLMNPRSTVWXY123456789', idx = codes.indexOf(vin[9]);
+    let year;
+    if (idx >= 0) { const now = new Date().getFullYear(); year = [0, 1, 2].map(k => 1980 + idx + 30 * k).filter(y => y <= now + 1).pop(); }
+    return { wmi: vin.slice(0, 3), maker: WMI[vin.slice(0, 3)] || '', year };
+  },
+};
+
+/* ------------------------------------------------------------ коды ошибок */
+
+const DTC_DB = {"codes": {"P0010": "Цепь привода распредвала «A» (банк 1)", "P0011": "Положение распредвала «A» — слишком раннее / характеристика (банк 1)", "P0016": "Несоответствие положения коленвала и распредвала (банк 1, датчик A)", "P0030": "Цепь подогрева датчика кислорода (банк 1, датчик 1)", "P0031": "Цепь подогрева датчика кислорода 1 — низкий уровень", "P0032": "Цепь подогрева датчика кислорода 1 — высокий уровень", "P0036": "Цепь подогрева датчика кислорода (банк 1, датчик 2)", "P0037": "Цепь подогрева датчика кислорода 2 — низкий уровень", "P0038": "Цепь подогрева датчика кислорода 2 — высокий уровень", "P0100": "Цепь датчика массового расхода воздуха (ДМРВ/MAF)", "P0101": "ДМРВ — сигнал вне диапазона", "P0102": "ДМРВ — низкий уровень сигнала", "P0103": "ДМРВ — высокий уровень сигнала", "P0105": "Цепь датчика абсолютного давления (ДАД/MAP)", "P0106": "Датчик абсолютного давления — сигнал вне диапазона", "P0107": "Датчик абсолютного давления — низкий уровень сигнала", "P0108": "Датчик абсолютного давления — высокий уровень сигнала", "P0110": "Цепь датчика температуры впускного воздуха", "P0112": "Датчик температуры впускного воздуха — низкий уровень", "P0113": "Датчик температуры впускного воздуха — высокий уровень (обрыв)", "P0115": "Цепь датчика температуры охлаждающей жидкости (ДТОЖ)", "P0116": "ДТОЖ — сигнал вне диапазона", "P0117": "ДТОЖ — низкий уровень сигнала", "P0118": "ДТОЖ — высокий уровень сигнала (обрыв)", "P0120": "Цепь датчика положения дросселя (ДПДЗ) «A»", "P0121": "ДПДЗ «A» — сигнал вне диапазона", "P0122": "ДПДЗ «A» — низкий уровень сигнала", "P0123": "ДПДЗ «A» — высокий уровень сигнала", "P0125": "Температура ОЖ недостаточна для работы по датчику кислорода", "P0128": "Двигатель долго не прогревается до рабочей температуры (термостат)", "P0130": "Цепь датчика кислорода (банк 1, датчик 1)", "P0131": "Датчик кислорода 1 — низкое напряжение", "P0132": "Датчик кислорода 1 — высокое напряжение", "P0133": "Датчик кислорода 1 — медленный отклик", "P0134": "Датчик кислорода 1 — нет активности", "P0135": "Цепь подогрева датчика кислорода 1", "P0136": "Цепь датчика кислорода (банк 1, датчик 2)", "P0137": "Датчик кислорода 2 — низкое напряжение", "P0138": "Датчик кислорода 2 — высокое напряжение", "P0140": "Датчик кислорода 2 — нет активности", "P0141": "Цепь подогрева датчика кислорода 2", "P0170": "Неисправность коррекции топливоподачи (банк 1)", "P0171": "Слишком бедная смесь (банк 1)", "P0172": "Слишком богатая смесь (банк 1)", "P0201": "Цепь форсунки цилиндра 1", "P0202": "Цепь форсунки цилиндра 2", "P0203": "Цепь форсунки цилиндра 3", "P0204": "Цепь форсунки цилиндра 4", "P0217": "Перегрев двигателя", "P0230": "Цепь реле топливного насоса", "P0300": "Случайные / множественные пропуски зажигания", "P0301": "Пропуски зажигания в цилиндре 1", "P0302": "Пропуски зажигания в цилиндре 2", "P0303": "Пропуски зажигания в цилиндре 3", "P0304": "Пропуски зажигания в цилиндре 4", "P0325": "Цепь датчика детонации 1", "P0327": "Датчик детонации 1 — низкий уровень сигнала", "P0328": "Датчик детонации 1 — высокий уровень сигнала", "P0335": "Цепь датчика положения коленвала (ДПКВ)", "P0336": "ДПКВ — сигнал вне диапазона", "P0340": "Цепь датчика положения распредвала (датчик фаз)", "P0341": "Датчик положения распредвала — сигнал вне диапазона", "P0351": "Цепь катушки зажигания «A»", "P0352": "Цепь катушки зажигания «B»", "P0353": "Цепь катушки зажигания «C»", "P0354": "Цепь катушки зажигания «D»", "P0400": "Система рециркуляции ОГ (EGR) — неисправность потока", "P0401": "Система EGR — недостаточный поток", "P0420": "Эффективность катализатора ниже порога (банк 1)", "P0440": "Система улавливания паров топлива (EVAP)", "P0441": "EVAP — неверный поток продувки", "P0442": "EVAP — малая утечка", "P0443": "Цепь клапана продувки адсорбера", "P0446": "Цепь клапана вентиляции адсорбера", "P0455": "EVAP — большая утечка (часто — не закрыта крышка бака)", "P0458": "Клапан продувки адсорбера — низкий уровень", "P0459": "Клапан продувки адсорбера — высокий уровень", "P0461": "Датчик уровня топлива — сигнал вне диапазона", "P0462": "Датчик уровня топлива — низкий уровень", "P0463": "Датчик уровня топлива — высокий уровень", "P0480": "Цепь управления вентилятором охлаждения 1", "P0500": "Датчик скорости автомобиля", "P0501": "Датчик скорости — сигнал вне диапазона", "P0505": "Система регулирования холостого хода", "P0506": "Обороты холостого хода ниже заданных", "P0507": "Обороты холостого хода выше заданных", "P0530": "Цепь датчика давления хладагента кондиционера", "P0532": "Датчик давления кондиционера — низкий уровень", "P0533": "Датчик давления кондиционера — высокий уровень", "P0560": "Напряжение бортовой сети — неисправность", "P0562": "Напряжение бортовой сети — низкое", "P0563": "Напряжение бортовой сети — высокое", "P0601": "Ошибка контрольной суммы памяти ЭБУ", "P0602": "ЭБУ не запрограммирован", "P0603": "Ошибка энергонезависимой памяти ЭБУ (KAM)", "P0604": "Ошибка оперативной памяти ЭБУ (RAM)", "P0605": "Ошибка постоянной памяти ЭБУ (ROM)", "P0606": "Неисправность процессора ЭБУ", "P0615": "Цепь реле стартера", "P0627": "Цепь управления топливным насосом", "P0638": "Привод дроссельной заслонки — вне диапазона", "P0641": "Опорное напряжение датчиков «A» — неисправность", "P0650": "Цепь лампы Check Engine", "P0685": "Цепь главного реле ЭБУ", "P0700": "Неисправность системы управления АКПП (прочитайте ошибки блока АКПП)", "P0705": "Цепь датчика положения селектора АКПП", "P0710": "Цепь датчика температуры жидкости АКПП", "P0715": "Датчик входной скорости (турбины) АКПП", "P0720": "Датчик выходной скорости АКПП", "P0730": "Неверное передаточное отношение", "P0740": "Цепь муфты блокировки гидротрансформатора", "P0750": "Соленоид переключения «A»", "P0755": "Соленоид переключения «B»", "P0760": "Соленоид переключения «C»", "P2101": "Двигатель привода дросселя — сигнал вне диапазона", "P2119": "Привод дросселя — неверное закрытое положение", "P2122": "Датчик положения педали «D» — низкий уровень", "P2127": "Датчик положения педали «E» — низкий уровень", "P2135": "Несоответствие сигналов датчиков дросселя A/B", "P2138": "Несоответствие сигналов датчиков педали D/E", "P2096": "Коррекция после катализатора — слишком бедно", "P2097": "Коррекция после катализатора — слишком богато", "U0001": "Высокоскоростная шина CAN — ошибка связи", "U0073": "Шина связи блоков управления «A» отключена", "U0100": "Нет связи с блоком двигателя (ECM)", "U0101": "Нет связи с блоком АКПП (TCM)", "U0121": "Нет связи с блоком ABS", "U0140": "Нет связи с блоком кузова (BCM)", "U0155": "Нет связи с приборной панелью"}, "hints": {"P0171": "Подсос воздуха (шланги, прокладка впуска), слабый бензонасос/фильтр, грязные форсунки, датчик MAP/MAF. Смотрите LTFT в «Живых данных».", "P0172": "Протекающие форсунки, высокое давление топлива, неисправный датчик кислорода или ДТОЖ, забитый воздушный фильтр.", "P0300": "Свечи, катушки/провода зажигания, форсунки, подсос воздуха, компрессия. Проверьте, в каком цилиндре пропуски.", "P0301": "Поменяйте местами катушку/свечу с соседним цилиндром: если ошибка «переехала» — виновата деталь. Если нет — форсунка или компрессия.", "P0302": "Поменяйте местами катушку/свечу с соседним цилиндром: если ошибка «переехала» — виновата деталь. Если нет — форсунка или компрессия.", "P0303": "Поменяйте местами катушку/свечу с соседним цилиндром: если ошибка «переехала» — виновата деталь. Если нет — форсунка или компрессия.", "P0304": "Поменяйте местами катушку/свечу с соседним цилиндром: если ошибка «переехала» — виновата деталь. Если нет — форсунка или компрессия.", "P0420": "Сравните датчики кислорода 1 и 2: если второй «прыгает» как первый — катализатор не работает. Сначала исключите пропуски зажигания.", "P0128": "Чаще всего — термостат открыт/залип. Смотрите, как растёт температура ОЖ.", "P0335": "Датчик коленвала, его разъём и проводка, зазор до задающего диска.", "P0340": "Датчик распредвала, проводка; при замене ремня ГРМ — проверьте метки.", "P0500": "Датчик скорости на КПП, проводка, разъём.", "P0562": "Проверьте генератор и аккумулятор: на работающем двигателе 13.5–14.7 В.", "P0563": "Проверьте регулятор напряжения генератора.", "P0700": "Эта ошибка лишь сообщает, что у АКПП есть свои ошибки — смотрите блок TCM.", "P0107": "Разъём и проводка датчика MAP, питание 5 В.", "P0108": "Разъём и проводка датчика MAP, массовый провод, сам датчик.", "P0117": "Замыкание проводки ДТОЖ на массу или неисправный датчик.", "P0118": "Обрыв проводки ДТОЖ, окисленный разъём или неисправный датчик.", "P0455": "Сначала проверьте, плотно ли закрыта крышка топливного бака.", "P0606": "Сначала проверьте питание и массы ЭБУ, только потом сам блок."}};
+const SYSTEMS = { P: 'Двигатель/трансмиссия', C: 'Шасси', B: 'Кузов', U: 'Сеть/связь' };
+const P_GROUPS = { 0: 'топливо и воздух', 1: 'топливо и воздух', 2: 'топливо и воздух', 3: 'зажигание / пропуски',
+  4: 'экологические системы', 5: 'скорость, холостой ход', 6: 'ЭБУ и выходные цепи', 7: 'трансмиссия', 8: 'трансмиссия', 9: 'трансмиссия' };
+
+function dtcKind(code) {
+  const s = code[0], d = code[1], maker = 'код производителя (Chevrolet/GM)';
+  if (s === 'P') return (d === '1' || (d === '3' && '0123'.includes(code[2]))) ? maker : 'общий код (SAE)';
+  return d === '0' ? 'общий код (SAE)' : (d === '1' || d === '2') ? maker : 'резервный код';
+}
+function describeDtc(code) {
+  code = code.toUpperCase();
+  const hint = DTC_DB.hints[code] || '';
+  if (DTC_DB.codes[code]) return [DTC_DB.codes[code], hint];
+  const g = (code[0] === 'P' && '012'.includes(code[1])) ? P_GROUPS[code[2]] : '';
+  return [`${SYSTEMS[code[0]] || ''}: ${dtcKind(code)}${g ? ', группа — ' + g : ''}. Нет в базе — смотрите сервис-мануал.`, hint];
+}
+
+/* ------------------------------------------------------------ эмулятор (демо) */
+
+const DEMO_VIN = 'XWBJF69VDLA000123';
+function encDtc(c) { return ['PCBU'.indexOf(c[0]) << 6 | +c[1] << 4 | parseInt(c[2], 16), parseInt(c.slice(3), 16)]; }
+
+class Emulator {
+  constructor() {
+    this.t0 = Date.now(); this.reset();
+    this.stored = { '7E8': ['P0301', 'P0420', 'P0700'], '7E9': ['P0715'] };
+    this.pending = { '7E8': ['P0171'], '7E9': [] };
+    this.permanent = { '7E8': ['P0301', 'P0420'], '7E9': [] };
+  }
+  reset() { this.echo = true; this.spaces = true; this.headers = false; this.searched = false; }
+  t() { return (Date.now() - this.t0) / 1000; }
+  coolant() { return 40 + Math.min(52, this.t() * 1.3); }
+  warm() { return this.coolant() > 70; }
+  volt() { return 14.1 + (Math.random() - 0.5) * 0.2; }
+  o2(n) {
+    if (!this.warm()) return 0.45;
+    const ph = Math.sin(this.t() * 4 + (n === 2 ? 0.6 : 0));
+    return 0.47 + (n === 1 ? 0.35 : 0.25) * (ph > 0 ? 1 : -1) + (Math.random() - 0.5) * 0.06;
+  }
+  pidData(p) {
+    const r = (a) => (Math.random() - 0.5) * 2 * a, t = this.t();
+    switch (p) {
+      case 0x01: { const n = this.stored['7E8'].length; return [(n ? 0x80 : 0) | n, 7, 0x65, 0]; }
+      case 0x03: return [this.warm() ? 2 : 1, 0];
+      case 0x04: return [Math.round(56 + r(3))];
+      case 0x05: return [Math.floor(this.coolant()) + 40];
+      case 0x06: return [Math.round(128 + r(4) * 1.28)];
+      case 0x07: return [Math.round(128 + 14 * 1.28)];
+      case 0x0B: return [33 + Math.round(r(1))];
+      case 0x0C: { const rpm = 780 + Math.max(0, (92 - this.coolant()) * 6) + r(15) - (Math.random() < 0.08 ? 60 : 0), v = Math.round(rpm * 4); return [v >> 8, v & 255]; }
+      case 0x0D: return [0];
+      case 0x0E: return [Math.round((10 + r(2) + 64) * 2)];
+      case 0x0F: return [Math.round(25 + Math.min(10, t / 10)) + 40];
+      case 0x11: return [11];
+      case 0x14: return [Math.round(this.o2(1) * 200), 255];
+      case 0x15: return [Math.round(this.o2(2) * 200), 255];
+      case 0x1F: return [(t >> 8) & 255, Math.floor(t) & 255];
+      case 0x21: return [0, 120];
+      case 0x2F: return [140];
+      case 0x31: return [5, 0xAA];
+      case 0x33: return [96];
+      case 0x42: { const v = Math.round(this.volt() * 1000); return [v >> 8, v & 255]; }
+      case 0x46: return [62];
+    }
+    return null;
+  }
+  bitmap(base, pids) {
+    let bits = 0;
+    for (const p of pids) if (p > base && p <= base + 32) bits += 2 ** (32 - (p - base));
+    return [bits >>> 24 & 255, bits >>> 16 & 255, bits >>> 8 & 255, bits & 255];
+  }
+  handle(cmd) {
+    const c = cmd.replace(/\s/g, '').toUpperCase();
+    let body;
+    if (!c) body = [];
+    else if (c.startsWith('AT')) body = this.at(c.slice(2));
+    else body = this.obd(c);
+    return (this.echo ? cmd + '\r' : '') + body.join('\r') + '\r\r>';
+  }
+  at(a) {
+    if (a === 'Z') { this.reset(); return ['', 'ELM327 v1.5']; }
+    if (a === 'I') return ['ELM327 v1.5'];
+    if (a === 'RV') return [this.volt().toFixed(1) + 'V'];
+    if (a === 'DPN') return ['A6'];
+    if (a === 'DP') return ['AUTO, ISO 15765-4 (CAN 11/500)'];
+    const f = { E0: ['echo', false], E1: ['echo', true], S0: ['spaces', false], S1: ['spaces', true], H0: ['headers', false], H1: ['headers', true] };
+    if (f[a]) { this[f[a][0]] = f[a][1]; return ['OK']; }
+    if (a.startsWith('SP')) { this.searched = false; return ['OK']; }
+    return /^[A-Z@]/.test(a) ? ['OK'] : ['?'];
+  }
+  obd(c) {
+    if (!HEX_RE.test(c) || c.length % 2) return ['?'];
+    const req = hexToBytes(c), mode = req[0], rep = [];
+    const pre = this.searched ? [] : ['SEARCHING...']; this.searched = true;
+    const ECM = Emulator.PIDS;
+    if (mode === 1 && req.length > 1) {
+      const p = req[1];
+      if ([0, 0x20, 0x40, 0x60].includes(p)) {
+        if (p === 0 || ECM.has(p)) rep.push(['7E8', [0x41, p, ...this.bitmap(p, ECM)]]);
+        if (p === 0) rep.push(['7E9', [0x41, 0, ...this.bitmap(0, [1])]]);
+      } else if (ECM.has(p)) { const d = this.pidData(p); if (d) rep.push(['7E8', [0x41, p, ...d]]); }
+    } else if ([3, 7, 0x0A].includes(mode)) {
+      const tab = { 3: this.stored, 7: this.pending, 10: this.permanent }[mode];
+      for (const [e, codes] of Object.entries(tab)) rep.push([e, [mode + 0x40, codes.length, ...codes.flatMap(encDtc)]]);
+    } else if (mode === 4) {
+      for (const e of Object.keys(this.stored)) { this.stored[e] = []; this.pending[e] = []; rep.push([e, [0x44]]); }
+    } else if (mode === 9 && req[1] === 2) {
+      rep.push(['7E8', [0x49, 2, 1, ...[...DEMO_VIN].map(ch => ch.charCodeAt(0))]]);
+    }
+    if (!rep.length) return [...pre, 'NO DATA'];
+    return [...pre, ...rep.flatMap(([e, p]) => this.fmt(e, p))];
+  }
+  fmt(ecu, pl) {
+    const sep = this.spaces ? ' ' : '', hx = a => toHex(a, sep), frames = [];
+    if (pl.length <= 7) frames.push([pl.length, ...pl, ...Array(7 - pl.length).fill(0xAA)]);
+    else {
+      frames.push([0x10 | (pl.length >> 8), pl.length & 255, ...pl.slice(0, 6)]);
+      let rest = pl.slice(6), seq = 1;
+      while (rest.length) { const ch = rest.slice(0, 7); rest = rest.slice(7); frames.push([0x20 | (seq++ & 15), ...ch, ...Array(7 - ch.length).fill(0xAA)]); }
+    }
+    if (this.headers) return frames.map(f => ecu + sep + hx(f));
+    if (frames.length === 1) return [hx(pl)];
+    const out = [pl.length.toString(16).toUpperCase().padStart(3, '0'), '0:' + sep + hx(pl.slice(0, 6))];
+    let rest = pl.slice(6), i = 1;
+    while (rest.length) { out.push((i++ & 15).toString(16).toUpperCase() + ':' + sep + hx(rest.slice(0, 7))); rest = rest.slice(7); }
+    return out;
+  }
+}
+Emulator.PIDS = new Set([1, 3, 4, 5, 6, 7, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x11, 0x14, 0x15, 0x1F, 0x20, 0x21, 0x2F, 0x31, 0x33, 0x40, 0x42, 0x46]);
+
+/* ------------------------------------------------------------ подключения */
+
+class DemoTransport {
+  constructor() { this.emu = new Emulator(); this.buffer = ''; this.inbuf = ''; this.name = 'Демо'; }
+  async write(s) {
+    this.inbuf += s;
+    let i;
+    while ((i = this.inbuf.indexOf('\r')) >= 0) {
+      const line = this.inbuf.slice(0, i); this.inbuf = this.inbuf.slice(i + 1);
+      await sleep(15 + Math.random() * 25); // как у настоящего адаптера
+      this.buffer += this.emu.handle(line.trim());
+    }
+  }
+  close() {}
+}
+
+// Известные BLE-сервисы адаптеров ELM327 (Vgate, Veepeak, V-Link, клоны HM-10 и др.)
+const BLE_SERVICES = [0xfff0, 0xffe0, 0x18f0, 0xffe5, 'e7810a71-73ae-499d-8c15-faa9aef0c3f2'];
+
+class BleTransport {
+  static available() { return !!(typeof navigator !== 'undefined' && navigator.bluetooth); }
+  async open() {
+    this.buffer = '';
+    this.device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: BLE_SERVICES });
+    this.name = this.device.name || 'BLE адаптер';
+    const server = await this.device.gatt.connect();
+    const services = await server.getPrimaryServices();
+    for (const s of services) {
+      let notify = null, write = null;
+      for (const ch of await s.getCharacteristics()) {
+        if (!notify && (ch.properties.notify || ch.properties.indicate)) notify = ch;
+        if (!write && (ch.properties.write || ch.properties.writeWithoutResponse)) write = ch;
+      }
+      if (notify && write) { this.rx = notify; this.tx = write; break; }
+    }
+    if (!this.rx) throw new Error('Не найден канал данных адаптера. Возможно, это Bluetooth Classic — выберите «Bluetooth (обычный)».');
+    const dec = new TextDecoder();
+    this.rx.addEventListener('characteristicvaluechanged', e => { this.buffer += dec.decode(e.target.value); });
+    await this.rx.startNotifications();
+    return this;
+  }
+  async write(s) {
+    const data = new TextEncoder().encode(s);
+    for (let i = 0; i < data.length; i += 20) {
+      const chunk = data.slice(i, i + 20);
+      if (this.tx.properties.writeWithoutResponse) await this.tx.writeValueWithoutResponse(chunk);
+      else await this.tx.writeValue(chunk);
+    }
+  }
+  close() { try { this.device.gatt.disconnect(); } catch (e) {} }
+}
+
+const SPP_UUID = '00001101-0000-1000-8000-00805f9b34fb';
+
+class SerialTransport {
+  static available() { return !!(typeof navigator !== 'undefined' && navigator.serial); }
+  async open(baud = 38400) {
+    this.buffer = '';
+    this.port = await navigator.serial.requestPort({ allowedBluetoothServiceClassIds: [SPP_UUID] });
+    await this.port.open({ baudRate: baud });
+    this.name = 'Bluetooth / USB';
+    this.writer = this.port.writable.getWriter();
+    this.reader = this.port.readable.getReader();
+    const dec = new TextDecoder();
+    (async () => {
+      try { for (;;) { const { value, done } = await this.reader.read(); if (done) break; this.buffer += dec.decode(value); } }
+      catch (e) {}
+    })();
+    return this;
+  }
+  async write(s) { await this.writer.write(new TextEncoder().encode(s)); }
+  async close() {
+    try { await this.reader.cancel(); } catch (e) {}
+    try { this.reader.releaseLock(); this.writer.releaseLock(); await this.port.close(); } catch (e) {}
+  }
+}
+
+if (typeof module !== 'undefined') module.exports = { parseResponse, OBD, ELM327, DemoTransport, Emulator, describeDtc, DEMO_VIN, PIDS, DTC_DB };
+
+</script>
+<script>
+/* ===================================================================
+   AvtoDiag — курс обучения: уроки, тесты, практика
+   В тексте урока можно вставить интерактив: <div data-widget="имя"></div>
+   =================================================================== */
+
+const COURSE = [
+{ id: 'm1', title: 'Основы', icon: '⚙', lessons: [
+{ id: 'l1', title: 'Как машина «думает»', time: 6, body: `
+<p>Двигателем управляет <b>ЭБУ</b> — электронный блок управления (по-английски ECM или ECU). Это компьютер, который
+сотни раз в секунду делает три вещи:</p>
+<div class="flow"><div><b>Датчики</b><span>измеряют</span></div><i>→</i><div><b>ЭБУ</b><span>считает</span></div><i>→</i><div><b>Исполнители</b><span>действуют</span></div></div>
+<h4>Главные датчики</h4>
+<ul>
+<li><b>ДПКВ</b> — датчик положения коленвала. Без него двигатель <u>не заведётся</u>: ЭБУ не знает обороты и когда давать искру.</li>
+<li><b>ДТОЖ</b> — температура охлаждающей жидкости. На холодном моторе ЭБУ льёт больше топлива и поднимает обороты.</li>
+<li><b>MAP</b> (давление во впуске) или <b>MAF</b> (расход воздуха) — сколько воздуха вошло в цилиндры. Под это ЭБУ считает топливо.</li>
+<li><b>ДПДЗ</b> — положение дроссельной заслонки (насколько нажат газ).</li>
+<li><b>Датчик кислорода (лямбда-зонд)</b> — сколько кислорода в выхлопе: смесь бедная или богатая.</li>
+<li><b>Датчик детонации</b> — «слышит» стук в двигателе, ЭБУ уменьшает угол зажигания.</li>
+</ul>
+<h4>Исполнители</h4>
+<p>Форсунки (подают бензин), катушки зажигания (искра), дроссель или регулятор холостого хода, вентилятор радиатора,
+бензонасос, клапан адсорбера.</p>
+<h4>Замкнутый и разомкнутый контур</h4>
+<p>Пока мотор холодный, ЭБУ работает «по таблицам» — <b>разомкнутый контур</b>. Когда прогрелся датчик кислорода, ЭБУ
+начинает поправлять топливо по нему — <b>замкнутый контур</b>. Это видно в «Живых данных» → «Топливная система».</p>
+<div class="tip">Главная мысль диагноста: ЭБУ видит мир только через датчики. Если датчик врёт — ЭБУ принимает
+неправильные решения, хотя сам исправен.</div>`,
+quiz: [
+ { q: 'Без какого датчика двигатель обычно не заведётся?', a: ['Датчик кислорода', 'Датчик положения коленвала (ДПКВ)', 'Датчик температуры воздуха', 'Датчик уровня топлива'], c: 1,
+   e: 'Без сигнала ДПКВ ЭБУ не знает положение и обороты коленвала, поэтому не даёт искру и топливо.' },
+ { q: 'Что значит «замкнутый контур»?', a: ['Двигатель заглушен', 'ЭБУ поправляет топливо по датчику кислорода', 'Включён кондиционер', 'Ошибка проводки'], c: 1,
+   e: 'В замкнутом контуре ЭБУ постоянно корректирует смесь по сигналу лямбда-зонда.' },
+]},
+{ id: 'l2', title: 'Электрика для диагноста', time: 7, body: `
+<p>Большинство ошибок — это не «сломался датчик», а <b>проблема в проводке</b>: окисленный разъём, перетёртый провод,
+плохая масса. Поэтому главный инструмент после сканера — <b>мультиметр</b>.</p>
+<h4>Три провода датчика</h4>
+<p>Типичный датчик (MAP, ДПДЗ) подключён тремя проводами:</p>
+<ul><li><b>Опорное +5 В</b> — питание от ЭБУ;</li><li><b>Масса</b> — минус от ЭБУ;</li><li><b>Сигнал</b> — от 0 до 5 В, зависит от измеряемой величины.</li></ul>
+<h4>Обрыв и замыкание в кодах ошибок</h4>
+<p>Когда в описании ошибки пишут <b>«низкий уровень сигнала»</b> — обычно замыкание сигнала на массу или нет питания 5 В.
+<b>«Высокий уровень»</b> — часто обрыв сигнального провода или массы.</p>
+<p>Пример с ДТОЖ: при обрыве провода сканер покажет <b>−40 °C</b> (код P0118), при замыкании на массу — очень высокую температуру (P0117).</p>
+<h4>Напряжение аккумулятора</h4>
+<table class="tbl"><tr><td>Двигатель заглушен, АКБ заряжен</td><td>12.4–12.8 В</td></tr>
+<tr><td>Двигатель работает (идёт зарядка)</td><td>13.5–14.7 В</td></tr>
+<tr><td>Ниже 12.2 В на заглушенном</td><td>АКБ разряжен</td></tr></table>
+<div class="tip">Правило: перед любой диагностикой проверьте напряжение (команда <code>ATRV</code> в терминале).
+Низкое напряжение вызывает «случайные» ошибки во многих блоках сразу.</div>`,
+quiz: [
+ { q: 'Сканер показывает температуру ОЖ −40 °C на тёплом моторе. Что вероятнее?', a: ['Мотор перегрет', 'Обрыв в цепи датчика', 'Термостат открыт', 'Всё нормально'], c: 1,
+   e: '−40 °C — это минимальное значение шкалы. Так ЭБУ видит обрыв цепи датчика температуры.' },
+ { q: 'Какое напряжение нормально при работающем двигателе?', a: ['11.5–12 В', '12.4–12.7 В', '13.5–14.7 В', '16–18 В'], c: 2,
+   e: 'При работающем моторе генератор заряжает АКБ, напряжение 13.5–14.7 В.' },
+]},
+{ id: 'l3', title: 'Разъём OBD-II и протоколы', time: 5, body: `
+<p>На всех машинах с OBD-II разъём одинаковый — 16 контактов, обычно под рулём. Нажмите на контакт, чтобы узнать его назначение:</p>
+<div data-widget="pinout"></div>
+<h4>Протоколы</h4>
+<p>По этим проводам машина может «говорить» на разных языках:</p>
+<ul><li><b>CAN</b> (контакты 6 и 14) — современный, быстрый. На большинстве новых Chevrolet.</li>
+<li><b>K-Line</b> (контакт 7) — старый, медленный. Может встречаться на старых моделях.</li>
+<li><b>J1850</b> (контакты 2, 10) — в основном старые американские машины.</li></ul>
+<p>Адаптер ELM327 умеет все стандартные протоколы. Команда <code>ATSP0</code> включает <b>автоопределение</b>.</p>
+<div class="tip">Если адаптер «не видит машину» — проверьте мультиметром контакт 16 (+12 В) и контакты 4/5 (масса).
+Иногда сгорает предохранитель прикуривателя, который питает и разъём OBD.</div>`,
+quiz: [
+ { q: 'На каких контактах шина CAN?', a: ['4 и 5', '6 и 14', '7 и 15', '2 и 10'], c: 1, e: 'CAN-High — контакт 6, CAN-Low — контакт 14.' },
+ { q: 'Откуда адаптер берёт питание?', a: ['От своей батарейки', 'Контакт 16 (+12 В) и масса 4/5', 'Через USB телефона', 'От шины CAN'], c: 1, e: 'Контакт 16 — постоянный плюс аккумулятора, 4 и 5 — массы.' },
+]},
+]},
+
+{ id: 'm2', title: 'Коды ошибок', icon: '⚠', lessons: [
+{ id: 'l4', title: 'Как читать код ошибки', time: 5, body: `
+<p>Каждый код — это 5 символов. Например, <b>P0301</b>:</p>
+<table class="tbl code-parts"><tr><td><b>P</b></td><td>Система: P — двигатель/трансмиссия, C — шасси (ABS), B — кузов (подушки, свет), U — связь между блоками</td></tr>
+<tr><td><b>0</b></td><td>0 — общий код (одинаков для всех марок), 1 — код производителя (у GM свой смысл)</td></tr>
+<tr><td><b>3</b></td><td>Подсистема: 1–2 топливо и воздух, 3 — зажигание, 4 — экология, 5 — холостой ход/скорость, 6 — ЭБУ, 7–8 — трансмиссия</td></tr>
+<tr><td><b>01</b></td><td>Конкретная неисправность: здесь — цилиндр №1</td></tr></table>
+<p>Попробуйте сами — введите любой код:</p>
+<div data-widget="dtc"></div>
+<div class="tip">Код показывает <b>симптом</b>, а не сломанную деталь. P0171 «бедная смесь» — это не «поменяй датчик кислорода»:
+датчик как раз честно сообщает, что воздуха слишком много.</div>`,
+quiz: [
+ { q: 'Код U0100 относится к…', a: ['Двигателю', 'Кузову', 'Связи между блоками', 'Тормозам'], c: 2, e: 'Буква U — сеть/связь. U0100 — потеряна связь с блоком двигателя.' },
+ { q: 'Чем P1xxx отличается от P0xxx?', a: ['Ничем', 'P1 — коды производителя', 'P1 — только для дизелей', 'P1 — неопасные'], c: 1, e: 'Вторая цифра 1 — код производителя. Его смысл ищут в документации GM.' },
+]},
+{ id: 'l5', title: 'Виды ошибок и стоп-кадр', time: 5, body: `
+<table class="tbl"><tr><td><b>Сохранённые</b><br><code>режим 03</code></td><td>Неисправность подтверждена (обычно 2 поездки подряд). Горит Check Engine.</td></tr>
+<tr><td><b>Ожидающие</b><br><code>режим 07</code></td><td>Блок заметил проблему один раз. Ранний сигнал — лампа может ещё не гореть.</td></tr>
+<tr><td><b>Постоянные</b><br><code>режим 0A</code></td><td>Не стираются сканером. Блок уберёт их сам, когда проверит, что ремонт помог.</td></tr></table>
+<h4>Стоп-кадр (Freeze Frame)</h4>
+<p>В момент появления ошибки ЭБУ сохраняет «фотографию» параметров: обороты, температуру, скорость, коррекции.
+Это очень ценно: видно, <b>при каких условиях</b> возникла неисправность — на холодную, под нагрузкой, на холостых.</p>
+<h4>Почему нельзя просто стирать ошибки</h4>
+<ul><li>Пропадает стоп-кадр — главная подсказка.</li>
+<li>Сбрасывается «готовность систем» (readiness) — блок заново проверяет датчики несколько поездок.</li>
+<li>Если причина не устранена, ошибка вернётся.</li></ul>
+<div class="tip">Правильно: <b>записать</b> все коды → найти причину → отремонтировать → стереть → проверить поездкой.</div>`,
+quiz: [
+ { q: 'Ошибка есть в «ожидающих», но лампа не горит. Что это значит?', a: ['Ошибка ложная', 'Блок заметил проблему, но ещё не подтвердил', 'Лампа сгорела', 'Ошибка уже исправлена'], c: 1, e: 'Ожидающая ошибка — ранний сигнал. Если повторится, станет сохранённой и загорится лампа.' },
+ { q: 'Что теряется при стирании ошибок?', a: ['VIN номер', 'Стоп-кадр и готовность систем', 'Прошивка ЭБУ', 'Пробег'], c: 1, e: 'Стирание удаляет стоп-кадры и сбрасывает мониторы готовности.' },
+]},
+{ id: 'l6', title: 'Алгоритм диагностики', time: 6, body: `
+<p>Хороший диагност работает по порядку, а не «меняет детали наугад»:</p>
+<ol class="steps">
+<li><b>Расспросить владельца.</b> Когда началось? На холодную или на горячую? После заправки, ремонта, мойки?</li>
+<li><b>Проверить напряжение.</b> АКБ, генератор, массы — <code>ATRV</code>.</li>
+<li><b>Прочитать все ошибки во всех блоках</b> и записать (сфотографировать).</li>
+<li><b>Изучить стоп-кадр</b> — при каких условиях возникла ошибка.</li>
+<li><b>Смотреть живые данные</b> — какие значения ненормальные?</li>
+<li><b>Проверить цепь</b> мультиметром: питание, масса, сигнал, разъём.</li>
+<li><b>Найти и устранить причину.</b></li>
+<li><b>Стереть ошибки и проверить</b> поездкой в тех же условиях.</li>
+</ol>
+<div class="tip">Если ошибок несколько, начинайте с ошибок <b>питания и связи</b> (P0562, U0xxx) — они часто вызывают остальные.</div>`,
+quiz: [
+ { q: 'Есть ошибки P0562 (низкое напряжение) и P0335 (ДПКВ). С чего начать?', a: ['Менять ДПКВ', 'Проверить АКБ, генератор и массы', 'Стереть ошибки', 'Перепрошить ЭБУ'], c: 1, e: 'Низкое напряжение может вызывать ошибки датчиков. Сначала устраняют проблемы питания.' },
+]},
+]},
+
+{ id: 'm3', title: 'Живые данные', icon: '📈', lessons: [
+{ id: 'l7', title: 'Топливные коррекции', time: 7, body: `
+<p>Коррекции показывают, <b>насколько ЭБУ поправляет</b> количество топлива относительно своих таблиц.</p>
+<ul><li><b>STFT</b> (краткосрочная) — быстро «гуляет» вокруг нуля, реагирует мгновенно.</li>
+<li><b>LTFT</b> (долгосрочная) — то, что ЭБУ «выучил» за долгое время.</li></ul>
+<table class="tbl"><tr><td><b>+10…+25 %</b></td><td>ЭБУ <b>добавляет</b> топливо → смесь была <b>бедной</b> (лишний воздух или мало бензина)</td></tr>
+<tr><td><b>−10…−25 %</b></td><td>ЭБУ <b>убавляет</b> топливо → смесь <b>богатая</b></td></tr>
+<tr><td>в пределах ±10 %</td><td>норма</td></tr></table>
+<h4>Как отличить причину</h4>
+<p>Сравните LTFT+STFT <b>на холостых</b> и <b>на 2500 об/мин</b>:</p>
+<ul><li>Плохо на холостых, нормально на оборотах → <b>подсос воздуха</b> (на холостых лишний воздух — большая доля).</li>
+<li>Нормально на холостых, плохо под нагрузкой → <b>топливо не успевает</b>: насос, фильтр, регулятор давления.</li></ul>
+<p>Попробуйте в симуляторе:</p>
+<div data-widget="trims"></div>`,
+quiz: [
+ { q: 'LTFT = +18 % на холостых и +3 % на 2500 об/мин. Вероятная причина?', a: ['Слабый бензонасос', 'Подсос воздуха', 'Протекающие форсунки', 'Всё в норме'], c: 1, e: 'Большая коррекция только на холостых — классический признак подсоса воздуха.' },
+ { q: 'Отрицательная коррекция −15 % означает…', a: ['Смесь бедная', 'Смесь богатая, ЭБУ убавляет топливо', 'Мотор холодный', 'Датчик сломан'], c: 1, e: 'Минус — ЭБУ убирает топливо, потому что смесь была богатой.' },
+]},
+{ id: 'l8', title: 'Датчики кислорода и катализатор', time: 6, body: `
+<p>Обычный (узкополосный) датчик кислорода выдаёт <b>0.1–0.9 В</b>:</p>
+<ul><li>~0.1–0.3 В — смесь <b>бедная</b> (много кислорода);</li><li>~0.6–0.9 В — смесь <b>богатая</b>.</li></ul>
+<p>В замкнутом контуре ЭБУ специально держит смесь «на грани», поэтому <b>датчик №1 (до катализатора) постоянно прыгает</b>
+вверх-вниз несколько раз в секунду.</p>
+<h4>Как проверить катализатор</h4>
+<p>Исправный катализатор «запасает» кислород, поэтому <b>датчик №2 (после него) почти ровный</b> — около 0.5–0.8 В.
+Если датчик №2 прыгает так же, как первый — катализатор не работает → ошибка <b>P0420</b>.</p>
+<div class="tip">Попробуйте: подключитесь в <b>демо-режиме</b>, прогрейте мотор (~1 минута) и сравните графики «Датчик O2 №1» и «№2».
+В демо-машине катализатор плохой — графики похожи.</div>
+<p>Но прежде чем менять катализатор, исключите пропуски зажигания и подсос воздуха в выпуск — они тоже «обманывают» датчики.</p>`,
+quiz: [
+ { q: 'Датчик O2 №1 постоянно показывает 0.1 В. Смесь…', a: ['Богатая', 'Бедная', 'Идеальная', 'Нельзя сказать'], c: 1, e: 'Низкое напряжение — много кислорода в выхлопе, смесь бедная (или неисправен датчик).' },
+ { q: 'Признак живого катализатора:', a: ['Датчик №2 прыгает как №1', 'Датчик №2 почти ровный', 'Датчик №2 показывает 0 В', 'Датчик №1 ровный'], c: 1, e: 'Исправный катализатор сглаживает колебания, датчик после него почти ровный.' },
+]},
+{ id: 'l9', title: 'Пропуски зажигания', time: 5, body: `
+<p>Пропуск зажигания — когда в цилиндре смесь не сгорела. ЭБУ замечает это по <b>неравномерному вращению коленвала</b> (через ДПКВ).</p>
+<p>Коды: <b>P0300</b> — случайные пропуски, <b>P0301–P0304</b> — в конкретном цилиндре.</p>
+<h4>Тест перестановкой — лучший приём новичка</h4>
+<ol class="steps"><li>Ошибка P0302 — пропуски во 2-м цилиндре.</li>
+<li>Поменяйте местами катушку (или свечу) 2-го и 3-го цилиндров.</li>
+<li>Сотрите ошибки, проедьте.</li>
+<li>Появилась <b>P0303</b> → виновата катушка/свеча (она «переехала»).</li>
+<li>Снова <b>P0302</b> → проблема в форсунке, компрессии или проводке 2-го цилиндра.</li></ol>
+<div class="tip">Пропуски зажигания убивают катализатор: несгоревший бензин догорает в нём и перегревает. Поэтому P0300 + P0420 часто идут вместе.</div>`,
+quiz: [
+ { q: 'После перестановки катушек 1↔2 ошибка P0301 сменилась на P0302. Что неисправно?', a: ['Форсунка 1', 'Катушка, которая стояла на 1-м цилиндре', 'ЭБУ', 'Компрессия'], c: 1, e: 'Ошибка «переехала» вместе с катушкой — значит, виновата катушка.' },
+]},
+]},
+
+{ id: 'm4', title: 'Программирование', icon: '</>', lessons: [
+{ id: 'l10', title: 'ELM327 и AT-команды', time: 6, body: `
+<p>ELM327 — это «переводчик» между телефоном и машиной. Телефон отправляет текст, адаптер переводит его в сигналы шины.</p>
+<h4>Два типа команд</h4>
+<ul><li><b>AT-команды</b> — настройки самого адаптера: <code>ATZ</code> (сброс), <code>ATE0</code> (выключить эхо),
+<code>ATH1</code> (показывать заголовки), <code>ATSP0</code> (автопоиск протокола), <code>ATRV</code> (напряжение).</li>
+<li><b>OBD-запросы</b> — в шестнадцатеричном виде: <code>010C</code> = режим 01, параметр 0C (обороты).</li></ul>
+<p>Каждая команда заканчивается символом <code>\\r</code>, а адаптер отвечает и печатает <code>&gt;</code> — «готов к следующей».</p>
+<h4>Режимы OBD-II</h4>
+<table class="tbl"><tr><td><code>01</code></td><td>текущие данные</td></tr><tr><td><code>02</code></td><td>стоп-кадр</td></tr>
+<tr><td><code>03</code></td><td>сохранённые ошибки</td></tr><tr><td><code>04</code></td><td>стереть ошибки</td></tr>
+<tr><td><code>07</code></td><td>ожидающие ошибки</td></tr><tr><td><code>09</code></td><td>информация (VIN)</td></tr>
+<tr><td><code>0A</code></td><td>постоянные ошибки</td></tr></table>
+<p>Ответ всегда начинается с <b>режим + 0x40</b>: на <code>01</code> → <code>41</code>, на <code>03</code> → <code>43</code>.</p>
+<div class="tip">Откройте вкладку <b>Терминал</b> в демо-режиме и отправьте эти команды сами. Так быстрее всего запоминается.</div>`,
+quiz: [
+ { q: 'Что ответит машина на запрос 0105 (начало ответа)?', a: ['01 05', '41 05', '7F 01', '43 05'], c: 1, e: 'Ответ = режим + 0x40 (01 → 41) и тот же номер параметра (05).' },
+ { q: 'Как адаптер показывает, что готов к следующей команде?', a: ['Символом >', 'Словом OK', 'Пустой строкой', 'Никак'], c: 0, e: 'Символ > — приглашение. Программа ждёт его после каждой команды.' },
+]},
+{ id: 'l11', title: 'Расшифровка ответа', time: 6, body: `
+<p>Байты в ответе обозначают буквами: первый байт данных — <b>A</b>, второй — <b>B</b>. Для каждого параметра есть формула:</p>
+<table class="tbl"><tr><td>Обороты (0C)</td><td><code>(A·256 + B) / 4</code></td></tr>
+<tr><td>Температура ОЖ (05)</td><td><code>A − 40</code></td></tr>
+<tr><td>Скорость (0D)</td><td><code>A</code></td></tr>
+<tr><td>Коррекции (06, 07)</td><td><code>(A − 128) · 100 / 128</code></td></tr>
+<tr><td>Датчик O2 (14, 15)</td><td><code>A / 200</code> вольт</td></tr></table>
+<p>Шестнадцатеричные числа: <code>1A</code> = 1·16 + 10 = 26, <code>F8</code> = 15·16 + 8 = 248.</p>
+<p>Расшифруйте ответ сами (можно скопировать из Терминала):</p>
+<div data-widget="hex"></div>`,
+quiz: [
+ { q: 'Ответ 41 05 7B. Какая температура ОЖ? (7B = 123)', a: ['123 °C', '83 °C', '163 °C', '41 °C'], c: 1, e: '123 − 40 = 83 °C.' },
+ { q: 'Ответ 41 0C 0C 80. Обороты? (0C=12, 80=128)', a: ['800', '3200', '12128', '1600'], c: 0, e: '(12·256 + 128) / 4 = 3200 / 4 = 800 об/мин.' },
+]},
+{ id: 'l12', title: 'CAN, ISO-TP и UDS', time: 8, body: `
+<p>В шине CAN каждое сообщение — <b>кадр</b> до 8 байт с адресом (ID). Запросы диагностики идут на ID <code>7DF</code> (всем блокам)
+или <code>7E0</code> (блоку двигателя), ответы приходят с <code>7E8</code> (двигатель), <code>7E9</code> (АКПП) и т.д.</p>
+<h4>Длинные сообщения — ISO-TP</h4>
+<p>Если ответ длиннее 7 байт (например, VIN — 20 байт), он режется на куски. Первый байт кадра (PCI) говорит, что это:</p>
+<div data-widget="isotp"></div>
+<h4>UDS — заводская диагностика</h4>
+<p>OBD-II — только малая часть. Блоки ABS, подушек, кузова и <b>прошивка</b> работают через протокол <b>UDS</b> (ISO 14229).
+Основные сервисы:</p>
+<table class="tbl"><tr><td><code>10</code></td><td>сменить сеанс диагностики</td></tr>
+<tr><td><code>19</code></td><td>прочитать ошибки</td></tr><tr><td><code>14</code></td><td>стереть ошибки</td></tr>
+<tr><td><code>22</code></td><td>прочитать параметр по номеру (DID)</td></tr>
+<tr><td><code>27</code></td><td>доступ по ключу (Security Access)</td></tr>
+<tr><td><code>34 / 36 / 37</code></td><td>загрузка данных в блок — <b>прошивка</b></td></tr></table>
+<p>Положительный ответ — сервис + 0x40 (<code>22</code> → <code>62</code>), отказ — <code>7F</code> + сервис + код причины.</p>
+<div class="tip">У GM на многих моделях используется свой вариант — <b>GMLAN</b>, с отличиями от стандартного UDS.
+Номера параметров (DID) у каждого производителя свои — их узнают из документации или изучая обмен дилерского сканера.</div>`,
+quiz: [
+ { q: 'С какого ID обычно отвечает блок двигателя?', a: ['7DF', '7E0', '7E8', '7E9'], c: 2, e: '7E8 — ответ блока двигателя. 7DF и 7E0 — адреса запросов.' },
+ { q: 'Кадр начинается с байта 10. Это…', a: ['Одиночный кадр', 'Первый кадр длинного сообщения', 'Последующий кадр', 'Ошибка'], c: 1, e: 'Старшая цифра 1 — First Frame, начало длинного сообщения.' },
+]},
+{ id: 'l13', title: 'Путь к прошивке', time: 7, body: `
+<p>Прошивка — это изменение программы или калибровок ЭБУ. Это следующий уровень, к нему переходят после уверенной диагностики.</p>
+<h4>Из чего состоит процесс</h4>
+<ol class="steps"><li><b>Опознать блок</b>: производитель, номер железа и номер прошивки.</li>
+<li><b>Стабильное питание</b> 13–14 В. Просадка во время записи может «убить» блок.</li>
+<li><b>Прочитать и сохранить оригинал</b> — без резервной копии ничего не делать.</li>
+<li><b>Изменить калибровки</b>: таблицы топлива, зажигания, ограничений (в редакторе вроде WinOLS).</li>
+<li><b>Пересчитать контрольные суммы</b> — иначе блок не запустится.</li>
+<li><b>Записать и проверить</b>, сделать адаптации.</li></ol>
+<h4>Почему это сложно</h4>
+<ul><li>Доступ к записи закрыт ключом (<b>Security Access</b>, сервис 27) — алгоритм свой у каждого блока.</li>
+<li>Нужно знать, где в памяти лежат нужные таблицы.</li>
+<li>Ошибка = неработающая машина.</li></ul>
+<div class="tip warn">Учитесь на <b>донорском блоке</b> с разборки, на столе — не на своей единственной машине.
+Программное удаление катализатора, EGR и других экологических систем во многих странах запрещено.</div>`,
+quiz: [
+ { q: 'Самый первый шаг перед записью прошивки?', a: ['Изменить таблицы', 'Сохранить оригинальную прошивку', 'Стереть ошибки', 'Отключить АКБ'], c: 1, e: 'Без резервной копии оригинала ошибку исправить невозможно.' },
+ { q: 'Зачем стабилизатор питания при прошивке?', a: ['Чтобы быстрее работало', 'Просадка напряжения может повредить блок', 'Для подсветки', 'Не нужен'], c: 1, e: 'Если напряжение упадёт во время записи, блок может остаться без рабочей программы.' },
+]},
+]},
+];
+
+const CASES = [
+ { car: 'Chevrolet Cobalt 1.5', title: 'Горит Check Engine, плавают холостые',
+   data: [['Ошибка', 'P0171 — бедная смесь'], ['LTFT на холостых', '+18 %'], ['LTFT на 2500 об/мин', '+4 %'], ['Датчик O2 №1', 'прыгает 0.1–0.8 В']],
+   q: 'Наиболее вероятная причина?', a: ['Слабый бензонасос', 'Подсос воздуха во впуске', 'Неисправный датчик O2', 'Плохой катализатор'], c: 1,
+   e: 'Коррекция большая только на холостых и уходит на оборотах — классический подсос воздуха. Проверяют шланги вентиляции картера, вакуумные трубки, прокладку впуска. Датчик O2 работает — он как раз честно показывает бедную смесь.' },
+ { car: 'Chevrolet Gentra 1.5', title: 'Троит двигатель',
+   data: [['Ошибки', 'P0300, P0302'], ['Действие', 'катушки 2↔3 поменяли местами'], ['После поездки', 'ошибка P0303']],
+   q: 'Что неисправно?', a: ['Форсунка 2-го цилиндра', 'Катушка зажигания', 'Компрессия во 2-м', 'ЭБУ'], c: 1,
+   e: 'Ошибка «переехала» вместе с катушкой на 3-й цилиндр — значит, неисправна катушка.' },
+ { car: 'Chevrolet Nexia 3', title: 'P0420 после покупки б/у',
+   data: [['Ошибка', 'P0420'], ['Датчик O2 №1', 'прыгает 0.1–0.9 В'], ['Датчик O2 №2', 'прыгает 0.2–0.8 В почти синхронно'], ['Пропуски', 'нет']],
+   q: 'Вывод?', a: ['Сломан датчик №1', 'Катализатор потерял эффективность', 'Бедная смесь', 'Всё нормально'], c: 1,
+   e: 'Датчик после катализатора повторяет первый — катализатор не сглаживает колебания. Перед заменой стоит проверить подсос воздуха в выпуск перед датчиком №2.' },
+ { car: 'Chevrolet Spark', title: 'Зимой печка греет плохо',
+   data: [['Ошибка', 'P0128'], ['Температура ОЖ после 20 мин езды', '68–72 °C'], ['Вентилятор', 'не включается']],
+   q: 'Наиболее вероятно:', a: ['Перегрев', 'Термостат открыт / заклинил', 'Обрыв ДТОЖ', 'Слабый АКБ'], c: 1,
+   e: 'Мотор не выходит на рабочую температуру — термостат пропускает жидкость в большой круг. При обрыве ДТОЖ показывало бы −40 °C.' },
+ { car: 'Chevrolet Cobalt 1.5', title: 'Мигает лампа АКБ, ошибки в разных блоках',
+   data: [['Ошибки', 'P0562, U0140, C-коды ABS'], ['Напряжение (мотор работает)', '12.0 В'], ['Напряжение (заглушен)', '12.3 В']],
+   q: 'С чего начать?', a: ['Менять блок ABS', 'Проверить генератор, ремень и провода зарядки', 'Стереть ошибки', 'Прошить ЭБУ'], c: 1,
+   e: 'На работающем моторе должно быть 13.5–14.7 В. Генератор не заряжает, и из-за низкого напряжения блоки ставят ошибки. Остальные коды — следствие.' },
+ { car: 'Chevrolet Spark', title: 'Крутит стартером, но не заводится',
+   data: [['Ошибка', 'P0335'], ['Обороты при прокрутке стартером', '0 об/мин'], ['Напряжение при прокрутке', '10.5 В']],
+   q: 'Что проверить первым?', a: ['Бензонасос', 'Датчик коленвала и его проводку', 'Свечи', 'Катализатор'], c: 1,
+   e: 'При прокрутке стартером сканер должен показывать ~200–300 об/мин. Ноль + P0335 = ЭБУ не видит сигнал ДПКВ, без него не будет искры и впрыска.' },
+];
+
+if (typeof module !== 'undefined') module.exports = { COURSE, CASES };
+
+</script>
+<script>
+/* ===================================================================
+   AvtoDiag — интерфейс
+   =================================================================== */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const S = { type: 'demo', elm: null, info: null, supported: [], live: false, rec: false, rows: [], hist: {},
+  selected: new Set(DEFAULT_LIVE), log: [], wake: null, dirty: false };
+
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem('avtodiag-' + k)) ?? d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('avtodiag-' + k, JSON.stringify(v)); } catch (e) {} },
+};
+
+function toast(msg, ok) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (ok ? ' ok' : ''); t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = 'none'), ok ? 2200 : 6000);
+}
+const busy = (b, on) => { b.disabled = on; b.classList.toggle('busy', on); };
+
+/* ---------------- навигация ---------------- */
+function go(v) {
+  $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.v === v));
+  $$('.view').forEach(s => s.classList.toggle('active', s.id === 'v-' + v));
+  if (v === 'term') { const o = $('#termOut'); o.scrollTop = o.scrollHeight; }
+  window.scrollTo(0, 0);
+}
+$$('#nav button').forEach(b => (b.onclick = () => go(b.dataset.v)));
+
+/* ---------------- журнал обмена ---------------- */
+function log(dir, text) {
+  const out = $('#termOut'), atBottom = out.scrollHeight - out.scrollTop - out.clientHeight < 40;
+  const d = document.createElement('div');
+  d.className = dir === 'TX' ? 'TX' : dir === 'RX' ? 'RX' : dir === '!!' ? 'err' : 'sys';
+  d.innerHTML = `<span class="t">${new Date().toLocaleTimeString('ru-RU')}</span>${dir === 'TX' ? '&gt; ' : dir === 'RX' ? '  ' : '# '}${esc(text)}`;
+  out.appendChild(d);
+  while (out.children.length > 500) out.firstChild.remove();
+  if (atBottom) out.scrollTop = out.scrollHeight;
+}
+
+/* ---------------- среда: что поддерживает браузер ---------------- */
+function checkEnv() {
+  const inFrame = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const ble = BleTransport.available(), ser = SerialTransport.available();
+  const bBtn = $('#ctype [data-v=ble]'), sBtn = $('#ctype [data-v=serial]');
+  if (!ble) { bBtn.disabled = true; $('#bleInfo').textContent = 'Этот браузер не поддерживает Bluetooth для сайтов'; }
+  if (!ser) { sBtn.disabled = true; $('#serialInfo').textContent = 'Нужен Chrome на Android или Chrome/Edge на компьютере'; }
+  let msg = '';
+  if (ios) msg = 'На iPhone браузер Safari не умеет работать с Bluetooth-адаптерами. Демо и обучение работают полностью. Для BLE-адаптера попробуйте браузер Bluefy.';
+  else if (inFrame) msg = 'Приложение открыто внутри другой страницы — Bluetooth здесь может быть заблокирован. Демо и обучение работают. Для машины откройте приложение по прямой ссылке в Chrome (см. «Как установить на телефон»).';
+  else if (!ble && !ser) msg = 'Этот браузер не поддерживает подключение адаптеров. Откройте приложение в Chrome.';
+  $('#envNote').hidden = !msg; $('#envNote').textContent = msg;
+}
+
+/* ---------------- подключение ---------------- */
+$$('#ctype button').forEach(b => (b.onclick = () => {
+  if (b.disabled) return;
+  S.type = b.dataset.v; $$('#ctype button').forEach(x => x.classList.toggle('active', x === b));
+}));
+$('#model').value = store.get('model', 'Chevrolet Cobalt');
+$('#model').onchange = () => { store.set('model', $('#model').value); renderModelNote(); };
+
+$('#btnConnect').onclick = async () => {
+  const b = $('#btnConnect'); busy(b, true);
+  let t;
+  try {
+    log('--', 'Подключение: ' + S.type);
+    if (S.type === 'demo') t = new DemoTransport();
+    else if (S.type === 'ble') t = await new BleTransport().open();
+    else t = await new SerialTransport().open(38400);
+    const elm = new ELM327(t, log);
+    await elm.initialize();
+    const sup = await OBD.supportedPids(elm);
+    const { mil, count } = await OBD.milStatus(elm);
+    const vin = await OBD.readVin(elm);
+    const volt = await elm.voltage();
+    S.elm = elm; S.supported = [...sup].filter(p => PIDS[p]).sort((a, b) => a - b);
+    S.info = { adapter: elm.version, proto: elm.protocolDesc, volt, vin, vi: OBD.decodeVin(vin), mil, count, demo: S.type === 'demo', name: t.name };
+    setConnected(true); toast('Подключено', true);
+  } catch (e) {
+    if (t) try { t.close(); } catch (x) {}
+    const m = String(e && e.message || e);
+    toast(/cancel|chosen|No port selected|User cancelled/i.test(m) ? 'Адаптер не выбран' : m);
+    log('!!', m); setConnected(false);
+  }
+  busy(b, false);
+};
+$('#btnDisconnect').onclick = () => { stopLive(); if (S.elm) S.elm.close(); S.elm = null; S.info = null; log('--', 'Отключено'); setConnected(false); };
+
+function setConnected(on) {
+  $('#pill').classList.toggle('on', on);
+  $('#pillText').textContent = on ? (S.info.demo ? 'ДЕМО · ' : '') + S.info.proto : 'Не подключено';
+  $('#btnConnect').hidden = on; $('#btnDisconnect').hidden = !on; $('#infoCard').hidden = !on;
+  $$('#ctype button').forEach(b => (b.style.pointerEvents = on ? 'none' : ''));
+  if (on) {
+    const i = S.info, v = i.vi || {};
+    const tiles = [['Адаптер', i.adapter], ['Напряжение', i.volt != null ? i.volt.toFixed(1) + ' В' : '—'],
+      ['Протокол', i.proto, 1], ['VIN', i.vin || 'блок не сообщает', 1], ['Производитель', v.maker || (v.wmi ? 'код ' + v.wmi : '—'), 1],
+      ['Год (по VIN)', v.year || '—'], ['Check Engine', i.mil == null ? '—' : i.mil ? 'ГОРИТ · ' + i.count : 'не горит']];
+    $('#tiles').innerHTML = tiles.map(([k, val, w]) => `<div class="tile${w ? ' wide' : ''}"><b>${k}</b><span>${esc(val)}</span></div>`).join('');
+    buildChips();
+  } else { $('#gauges').innerHTML = ''; $('#pidChips').innerHTML = ''; }
+  renderModelNote();
+}
+function renderModelNote() {
+  const m = $('#model').value;
+  const old = /Nexia 2|Damas/.test(m), mid = /Lacetti/.test(m);
+  $('#modelNote').innerHTML = old
+    ? `<div class="note warn"><b>${esc(m)}:</b> на старых версиях блок может работать по K-Line или не полностью поддерживать OBD-II. Дешёвые клоны ELM327 с K-Line часто не работают.</div>`
+    : mid ? `<div class="note"><b>${esc(m)}:</b> в зависимости от года может быть K-Line или CAN — протокол определится сам.</div>`
+      : `<div class="note"><b>${esc(m)}:</b> протокол определится автоматически (обычно CAN). Доступны данные двигателя и часть ошибок АКПП.</div>`;
+}
+async function needElm() {
+  if (!S.elm) { toast('Сначала подключитесь (вкладка «Связь»)'); go('home'); throw new Error('no elm'); }
+  if (S.dirty) { S.dirty = false; log('--', 'Восстанавливаю настройки адаптера'); await S.elm.restore(); }
+  return S.elm;
+}
+
+/* ---------------- ошибки ---------------- */
+$('#btnRead').onclick = async () => {
+  const b = $('#btnRead'); busy(b, true);
+  try {
+    const elm = await needElm();
+    const m = await OBD.milStatus(elm);
+    renderDtc({ ...m, stored: await OBD.readDtcs(elm, '03'), pending: await OBD.readDtcs(elm, '07'), permanent: await OBD.readDtcs(elm, '0A') });
+  } catch (e) { if (e.message !== 'no elm') toast(e.message); }
+  busy(b, false);
+};
+function renderDtc(r) {
+  $('#milBox').innerHTML = r.mil == null ? '' : `<div class="mil ${r.mil ? 'on' : 'off'}">${r.mil ? '⚠ Check Engine горит · подтверждённых: ' + r.count : '✓ Check Engine не горит'}</div>`;
+  const groups = [['stored', 'Сохранённые', 'Подтверждённые неисправности — из-за них горит лампа.'],
+    ['pending', 'Ожидающие', 'Замечены один раз — ранний сигнал.'],
+    ['permanent', 'Постоянные', 'Блок сотрёт сам после успешной проверки. Командой не стираются.']];
+  const card = d => `<div class="dtc"><div class="top"><span class="code">${esc(d.code)}</span><span class="ecu">${esc(d.ecuName)}</span></div>
+    <div class="d">${esc(d.desc)}</div>${d.hint ? `<div class="h">${esc(d.hint)}</div>` : ''}</div>`;
+  $('#dtcList').innerHTML = groups.map(([k, t, p]) => `<div class="grp"><h3>${t} · ${r[k].length}</h3><p>${p}</p>
+    ${r[k].length ? r[k].map(card).join('') : '<div class="okline">Нет ошибок</div>'}</div>`).join('');
+}
+$('#btnClear').onclick = () => { if (!S.elm) return toast('Сначала подключитесь'); $('#modal').style.display = 'flex'; };
+$('#mNo').onclick = () => ($('#modal').style.display = 'none');
+$('#mYes').onclick = async () => {
+  $('#modal').style.display = 'none';
+  try {
+    const elm = await needElm();
+    if (!(await OBD.clearDtcs(elm))) throw new Error('Блок не подтвердил. Двигатель должен быть заглушен, зажигание включено.');
+    toast('Ошибки стёрты', true); $('#btnRead').click();
+  } catch (e) { if (e.message !== 'no elm') toast(e.message); }
+};
+
+/* ---------------- живые данные ---------------- */
+function buildChips() {
+  if (!S.supported.some(p => S.selected.has(p))) S.supported.slice(0, 6).forEach(p => S.selected.add(p));
+  $('#pidChips').innerHTML = S.supported.map(p => `<span class="chip ${S.selected.has(p) ? 'on' : ''}" data-p="${p}">${esc(PIDS[p][0])}</span>`).join('');
+  $$('#pidChips .chip').forEach(c => (c.onclick = () => {
+    const p = +c.dataset.p; S.selected.has(p) ? S.selected.delete(p) : S.selected.add(p); c.classList.toggle('on'); buildGauges();
+  }));
+  buildGauges();
+}
+function buildGauges() {
+  const list = S.supported.filter(p => S.selected.has(p));
+  $('#gauges').innerHTML = list.map(p => `<div class="g" id="g${p}"><div class="n">${esc(PIDS[p][0])}</div><div class="v">—</div>
+    <div class="h">${esc(PIDS[p][3] || '')}</div><canvas width="240" height="32"></canvas></div>`).join('');
+}
+function spark(cv, arr) {
+  const c = cv.getContext('2d'), w = cv.width, h = cv.height; c.clearRect(0, 0, w, h);
+  if (arr.length < 2) return;
+  let mn = Math.min(...arr), mx = Math.max(...arr); if (mx - mn < 1e-6) { mx += 1; mn -= 1; }
+  c.strokeStyle = '#3fb6a8'; c.lineWidth = 2; c.beginPath();
+  arr.forEach((v, i) => { const x = i / 59 * w, y = h - 3 - (v - mn) / (mx - mn) * (h - 6); i ? c.lineTo(x, y) : c.moveTo(x, y); });
+  c.stroke();
+}
+function fmtVal(v) {
+  if (typeof v !== 'number') return esc(v);
+  if (Number.isInteger(v)) return v;
+  return Math.abs(v) < 10 ? v.toFixed(2) : v.toFixed(1);
+}
+function updGauges(vals) {
+  for (const v of vals) {
+    const el = $('#g' + v.pid); if (!el) continue;
+    const num = typeof v.value === 'number';
+    el.className = 'g' + (v.value != null && !num ? ' txt' : '') + (v.state === 'warn' ? ' warn' : v.state === 'bad' ? ' bad' : '');
+    el.querySelector('.v').innerHTML = v.value == null ? '<span style="color:var(--muted);font-size:14px">нет ответа</span>' : fmtVal(v.value) + `<span class="u">${esc(v.unit)}</span>`;
+    if (num) { const h = S.hist[v.pid] || (S.hist[v.pid] = []); h.push(v.value); if (h.length > 60) h.shift(); spark(el.querySelector('canvas'), h); }
+  }
+}
+async function liveLoop() {
+  while (S.live) {
+    const t0 = performance.now();
+    try {
+      const elm = await needElm();
+      const pids = S.supported.filter(p => S.selected.has(p));
+      const vals = await OBD.readLive(elm, pids);
+      updGauges(vals);
+      if (S.rec) { S.rows.push({ t: Date.now(), vals }); }
+      $('#rate').textContent = `Обновление: ${Math.round(performance.now() - t0)} мс` + (S.rec ? ` · ● запись: ${S.rows.length}` : '');
+    } catch (e) { if (e.message !== 'no elm') toast(e.message); stopLive(); }
+    await sleep(100);
+  }
+}
+async function startLive() {
+  if (!S.elm) { toast('Сначала подключитесь'); return go('home'); }
+  S.live = true; $('#btnLive').textContent = '■ Стоп';
+  try { S.wake = await navigator.wakeLock?.request('screen'); } catch (e) {} // экран не гаснет
+  liveLoop();
+}
+function stopLive() {
+  S.live = false; $('#btnLive').textContent = '▶ Старт';
+  try { S.wake && S.wake.release(); } catch (e) {} S.wake = null;
+}
+$('#btnLive').onclick = () => (S.live ? stopLive() : startLive());
+$('#btnRec').onclick = () => {
+  S.rec = !S.rec; if (S.rec) S.rows = [];
+  $('#btnRec').textContent = S.rec ? '■ Запись' : '● Запись'; $('#btnRec').style.color = S.rec ? 'var(--bad)' : '';
+  if (S.rec && !S.live) startLive();
+};
+$('#btnCsv').onclick = async () => {
+  if (!S.rows.length) return toast('Нет записи. Нажмите «Запись».');
+  const head = 'Время;' + S.rows[0].vals.map(v => `${v.name} (${v.unit})`).join(';');
+  const lines = S.rows.map(r => new Date(r.t).toLocaleTimeString('ru-RU') + ';' + r.vals.map(v => typeof v.value === 'number' ? String(v.value).replace('.', ',') : (v.value ?? '')).join(';'));
+  const text = '﻿' + [head, ...lines].join('\r\n'), name = 'avtodiag_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.csv';
+  if (await saveFile(name, text)) toast('Файл сохранён', true);
+};
+async function saveFile(name, text) {
+  try {
+    if (window.claude && claude.use) {
+      const dl = await Promise.race([claude.use('downloads'), sleep(3000).then(() => null)]);
+      if (dl) { await dl.save({ filename: name, data: text }); return true; }
+    }
+  } catch (e) { toast('Сохранение отменено'); return false; }
+  try {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove(); return true;
+  } catch (e) {
+    try { await navigator.clipboard.writeText(text); toast('Скачивание недоступно — данные скопированы', true); } catch (x) { toast('Не удалось сохранить'); }
+    return false;
+  }
+}
+
+/* ---------------- терминал ---------------- */
+const QUICK = [['ATI', 'версия'], ['ATRV', 'напряжение'], ['ATDP', 'протокол'], ['0100', 'какие PID есть'], ['010C', 'обороты'],
+  ['0105', 'темп. ОЖ'], ['0101', 'статус лампы'], ['03', 'ошибки'], ['0902', 'VIN'], ['ATH0', 'без заголовков'], ['ATH1', 'с заголовками']];
+$('#quick').innerHTML = QUICK.map(([c, d]) => `<button data-c="${c}"><code>${c}</code>${d}</button>`).join('');
+$$('#quick button').forEach(b => (b.onclick = () => sendRaw(b.dataset.c)));
+async function sendRaw(cmd) {
+  cmd = (cmd ?? $('#termIn').value).replace(/[^\x20-\x7e]/g, '').trim().slice(0, 64);
+  if (!cmd) return;
+  if (!S.elm) return toast('Сначала подключитесь (можно в демо-режиме)');
+  if (/^04$/.test(cmd.replace(/\s/g, ''))) return toast('Стирание ошибок — кнопкой на вкладке «Ошибки»');
+  $('#termIn').value = '';
+  await S.elm.cmd(cmd, 5000);
+  if (/^AT/i.test(cmd) && !/^AT(I|RV|DPN?|@1)$/i.test(cmd.replace(/\s/g, ''))) S.dirty = true;
+}
+$('#btnSend').onclick = () => sendRaw();
+$('#termIn').onkeydown = e => { if (e.key === 'Enter') sendRaw(); };
+
+/* ===================================================================
+   ОБУЧЕНИЕ
+   =================================================================== */
+let progress = store.get('progress', {});
+const allLessons = COURSE.flatMap(m => m.lessons);
+
+function renderLearnHome() {
+  const done = allLessons.filter(l => progress[l.id]).length;
+  const casesDone = CASES.filter((c, i) => progress['case' + i]).length;
+  const total = allLessons.length + CASES.length, pct = Math.round((done + casesDone) / total * 100);
+  $('#progBar').style.width = pct + '%';
+  $('#progText').textContent = `уроки ${done}/${allLessons.length} · практика ${casesDone}/${CASES.length}`;
+  let n = 0;
+  $('#modules').innerHTML = COURSE.map(m => `<div class="mod"><h3><span class="mi">${esc(m.icon)}</span>${esc(m.title)}</h3>
+    ${m.lessons.map(l => { n++; return `<button class="les ${progress[l.id] ? 'done' : ''}" data-l="${l.id}"><span class="num">${progress[l.id] ? '✓' : n}</span>
+      <span>${esc(l.title)}<small>${l.time} мин · тест ${l.quiz.length} вопр.</small></span></button>`; }).join('')}</div>`).join('');
+  $('#caseList').innerHTML = CASES.map((c, i) => `<button class="les ${progress['case' + i] ? 'done' : ''}" data-c="${i}"><span class="num">${progress['case' + i] ? '✓' : i + 1}</span>
+    <span>${esc(c.title)}<small>${esc(c.car)}</small></span></button>`).join('');
+  $$('#modules .les').forEach(b => (b.onclick = () => openLesson(b.dataset.l)));
+  $$('#caseList .les').forEach(b => (b.onclick = () => openCase(+b.dataset.c)));
+}
+$$('[data-tool]').forEach(b => (b.onclick = () => openTool(b.dataset.tool)));
+function showPage(html) {
+  $('#learnHome').hidden = true; $('#learnPage').hidden = false;
+  $('#learnContent').innerHTML = html; renderWidgets($('#learnContent')); window.scrollTo(0, 0);
+}
+$('#learnBack').onclick = () => { $('#learnHome').hidden = false; $('#learnPage').hidden = true; renderLearnHome(); window.scrollTo(0, 0); };
+
+function quizHtml(items, prefix) {
+  return items.map((q, i) => `<div class="q" data-q="${prefix}${i}" data-c="${q.c}"><div class="qt">${i + 1}. ${esc(q.q)}</div>
+    ${q.a.map((a, j) => `<button data-j="${j}">${esc(a)}</button>`).join('')}<div class="ex" hidden>${esc(q.e)}</div></div>`).join('');
+}
+function wireQuiz(root, onDone) {
+  const qs = [...root.querySelectorAll('.q')]; let answered = 0, right = 0;
+  qs.forEach(q => q.querySelectorAll('button').forEach(b => (b.onclick = () => {
+    if (q.dataset.done) return; q.dataset.done = 1; answered++;
+    const c = +q.dataset.c, j = +b.dataset.j;
+    b.classList.add(j === c ? 'right' : 'wrong'); q.querySelectorAll('button')[c].classList.add('right');
+    if (j === c) right++;
+    const ex = q.querySelector('.ex'); ex.hidden = false; ex.textContent = (j === c ? '✓ Верно. ' : '✗ Неверно. ') + ex.textContent;
+    if (answered === qs.length) onDone(right, qs.length);
+  })));
+}
+function openLesson(id) {
+  const idx = allLessons.findIndex(l => l.id === id), l = allLessons[idx], next = allLessons[idx + 1];
+  showPage(`<div class="casehead">Урок ${idx + 1} из ${allLessons.length}</div><h2>${esc(l.title)}</h2>
+    <div class="lesson">${l.body}</div>
+    <div class="quiz"><h3>Проверьте себя</h3>${quizHtml(l.quiz, 'q')}<div id="qres"></div></div>`);
+  wireQuiz($('#learnContent'), (r, n) => {
+    const passed = r === n || r / n >= 0.5;
+    if (passed) { progress[id] = true; store.set('progress', progress); }
+    $('#qres').innerHTML = `<div class="note ${passed ? '' : 'warn'}">${passed ? 'Урок пройден' : 'Перечитайте урок и попробуйте снова'} · ${r} из ${n}</div>
+      <div class="row" style="margin-top:10px">${passed && next ? `<button class="btn" id="nextL">Следующий урок ›</button>` : `<button class="btn ghost" id="again">Пройти ещё раз</button>`}</div>`;
+    const nb = $('#nextL'); if (nb) nb.onclick = () => openLesson(next.id);
+    const ag = $('#again'); if (ag) ag.onclick = () => openLesson(id);
+  });
+}
+function openCase(i) {
+  const c = CASES[i];
+  showPage(`<div class="casehead">Практика ${i + 1} · ${esc(c.car)}</div><h2>${esc(c.title)}</h2>
+    <div class="card"><b style="font-size:13px;color:var(--muted)">ДАННЫЕ СКАНЕРА</b>
+    <table class="tbl">${c.data.map(([k, v]) => `<tr><td style="white-space:normal">${esc(k)}</td><td><b>${esc(v)}</b></td></tr>`).join('')}</table></div>
+    ${quizHtml([c], 'c')}<div id="qres"></div>`);
+  wireQuiz($('#learnContent'), (r) => {
+    if (r) { progress['case' + i] = true; store.set('progress', progress); }
+    const nx = i + 1 < CASES.length;
+    $('#qres').innerHTML = `<div class="row" style="margin-top:6px">${nx ? `<button class="btn" id="nextC">Следующий случай ›</button>` : ''}<button class="btn ghost" id="again">Ещё раз</button></div>`;
+    if (nx) $('#nextC').onclick = () => openCase(i + 1);
+    $('#again').onclick = () => openCase(i);
+  });
+}
+function openTool(name) {
+  const titles = { dtc: 'Расшифровщик кодов', hex: 'Расшифровщик ответов', pinout: 'Распиновка OBD-II', trims: 'Симулятор коррекций' };
+  showPage(`<h2>${titles[name]}</h2><div data-widget="${name}"></div>`);
+}
+
+/* ---------------- интерактивные виджеты ---------------- */
+function renderWidgets(root) { root.querySelectorAll('[data-widget]').forEach(el => WIDGETS[el.dataset.widget]?.(el)); }
+
+const PINS = {
+  1: 'На усмотрение производителя. У многих GM — однопроводная шина GMLAN (кузовные блоки).', 2: 'J1850 Bus+ (старые американские машины)',
+  3: 'На усмотрение производителя', 4: 'Масса кузова', 5: 'Сигнальная масса', 6: 'CAN-High — основная диагностическая шина (ISO 15765)',
+  7: 'K-Line (ISO 9141 / ISO 14230 KWP)', 8: 'На усмотрение производителя', 9: 'На усмотрение производителя', 10: 'J1850 Bus−',
+  11: 'На усмотрение производителя', 12: 'На усмотрение производителя', 13: 'На усмотрение производителя', 14: 'CAN-Low — пара к контакту 6',
+  15: 'L-Line (ISO 9141, редко)', 16: '+12 В от аккумулятора (постоянный плюс)',
+};
+const PIN_COLOR = { 4: '#8f969e', 5: '#8f969e', 6: '#3fb6a8', 14: '#3fb6a8', 7: '#f2b134', 16: '#ef5b5b', 2: '#9b7fe0', 10: '#9b7fe0', 15: '#f2b134' };
+
+const WIDGETS = {
+  pinout(el) {
+    let pins = '';
+    for (let i = 1; i <= 16; i++) {
+      const row = i <= 8 ? 0 : 1, col = (i - 1) % 8, x = 42 + col * 33 + (row ? 0 : 0), y = row ? 92 : 48, c = PIN_COLOR[i] || '#3a4046';
+      pins += `<g class="pin" data-p="${i}"><circle cx="${x}" cy="${y}" r="11" fill="${c}"/><text x="${x}" y="${y + 4}" text-anchor="middle" font-size="11" fill="#0f1113" font-weight="700">${i}</text></g>`;
+    }
+    el.innerHTML = `<div class="w"><svg viewBox="0 0 316 140" style="width:100%;max-width:420px;display:block;margin:auto">
+      <path d="M14 22 H302 L284 118 H32 Z" fill="#1a1d20" stroke="#3a4046" stroke-width="2" rx="8"/>${pins}</svg>
+      <div style="font-size:12px;color:var(--muted);text-align:center">вид на разъём в машине</div>
+      <div class="out" id="pinOut">Нажмите на контакт</div>
+      <div class="seg2" style="margin-top:10px;font-size:12px"><span style="color:#3fb6a8">● CAN</span><span style="color:#f2b134">● K-Line</span><span style="color:#ef5b5b">● +12 В</span><span style="color:#8f969e">● масса</span><span style="color:#9b7fe0">● J1850</span></div></div>`;
+    el.querySelectorAll('.pin').forEach(g => (g.onclick = () => {
+      el.querySelectorAll('.pin circle').forEach(c => c.setAttribute('r', 11)); g.querySelector('circle').setAttribute('r', 14);
+      el.querySelector('#pinOut').innerHTML = `<span class="big">${g.dataset.p}</span> — ${esc(PINS[g.dataset.p])}`;
+    }));
+  },
+  dtc(el) {
+    el.innerHTML = `<div class="w"><input type="text" placeholder="Например P0171" maxlength="5" autocapitalize="characters" style="font-family:var(--mono)"><div class="out"></div></div>`;
+    const inp = el.querySelector('input'), out = el.querySelector('.out');
+    const run = () => {
+      const c = inp.value.toUpperCase().replace(/[^PCBU0-9A-F]/g, '');
+      if (!/^[PCBU][0-3][0-9A-F]{3}$/.test(c)) { out.innerHTML = c ? '<span style="color:var(--muted)">Формат: буква P/C/B/U и 4 символа, например P0301</span>' : ''; return; }
+      const [desc, hint] = describeDtc(c);
+      const sub = c[0] === 'P' && '012'.includes(c[1]) ? P_GROUPS[c[2]] : 'зависит от производителя';
+      out.innerHTML = `<div class="big">${c}</div><table class="tbl">
+        <tr><td><b>${c[0]}</b></td><td>${SYSTEMS[c[0]]}</td></tr><tr><td><b>${c[1]}</b></td><td>${dtcKind(c)}</td></tr>
+        <tr><td><b>${c[2]}</b></td><td>подсистема: ${esc(sub)}</td></tr><tr><td><b>${c.slice(3)}</b></td><td>номер неисправности</td></tr></table>
+        <div><b>${esc(desc)}</b></div>${hint ? `<div style="color:var(--muted);margin-top:6px">Что проверить: ${esc(hint)}</div>` : ''}`;
+    };
+    inp.oninput = run; inp.value = 'P0301'; run();
+  },
+  hex(el) {
+    el.innerHTML = `<div class="w"><input type="text" placeholder="41 0C 1A F8" style="font-family:var(--mono)">
+      <div class="seg2" style="margin-top:8px"><button data-x="41 0C 1A F8">обороты</button><button data-x="41 05 7B">температура</button><button data-x="41 07 92">LTFT</button><button data-x="43 02 03 01 04 20">ошибки</button><button data-x="7F 22 31">отказ</button></div>
+      <div class="out"></div></div>`;
+    const inp = el.querySelector('input'), out = el.querySelector('.out');
+    const hx = n => '0x' + n.toString(16).toUpperCase().padStart(2, '0');
+    const run = () => {
+      let t = inp.value.toUpperCase().replace(/[^0-9A-F ]/g, ' ').trim().split(/\s+/).filter(Boolean);
+      if (t.length && t[0].length === 3) t = t.slice(2); // заголовок 7E8 и байт длины
+      const b = t.filter(x => x.length === 2).map(x => parseInt(x, 16));
+      if (!b.length) { out.innerHTML = ''; return; }
+      let h = '';
+      if (b[0] === 0x41 && b.length >= 3) {
+        const p = PIDS[b[1]], A = b[2], B = b[3];
+        h = `<p><code>41</code> — ответ на режим 01 (01 + 40)<br><code>${hx(b[1]).slice(2)}</code> — параметр: <b>${p ? esc(p[0]) : 'неизвестный PID'}</b><br>
+          A = ${hx(A)} = <b>${A}</b>${B !== undefined ? `, B = ${hx(B)} = <b>${B}</b>` : ''}</p>`;
+        if (p) { let v; try { v = p[2](b.slice(2)); } catch (e) {} if (v !== undefined) h += `<div class="big">${fmtVal(v)} ${esc(p[1])}</div>`; }
+      } else if (b[0] === 0x43) {
+        const can = b.length % 2 === 0 && b[1] === (b.length - 2) / 2, data = can ? b.slice(2) : b.slice(1), codes = [];
+        for (let i = 0; i + 1 < data.length; i += 2) if (data[i] || data[i + 1]) codes.push(OBD.decodeDtc(data[i], data[i + 1]));
+        h = `<p><code>43</code> — ответ на режим 03 (ошибки)${can ? `<br><code>${hx(b[1]).slice(2)}</code> — количество ошибок (CAN)` : ''}<br>Каждые 2 байта — один код. Два старших бита первого байта — буква (00=P, 01=C, 10=B, 11=U).</p>
+          <div class="big">${codes.join(', ') || 'нет ошибок'}</div>`;
+      } else if (b[0] === 0x7F) {
+        const nrc = { 0x10: 'общий отказ', 0x11: 'сервис не поддерживается', 0x12: 'подфункция не поддерживается', 0x13: 'неверная длина', 0x22: 'условия не выполнены', 0x31: 'вне диапазона (нет такого параметра)', 0x33: 'доступ запрещён (нужен ключ)', 0x35: 'неверный ключ', 0x78: 'подождите, ответ готовится' };
+        h = `<p><code>7F</code> — <b>отрицательный ответ</b> (отказ)<br><code>${hx(b[1] ?? 0).slice(2)}</code> — на какой сервис<br><code>${hx(b[2] ?? 0).slice(2)}</code> — причина: <b>${esc(nrc[b[2]] || 'код ' + hx(b[2] ?? 0))}</b></p>`;
+      } else if (b[0] === 0x49 && b[1] === 2) {
+        h = `<p><code>49 02</code> — VIN. Байты — коды букв ASCII.</p><div class="big">${esc(String.fromCharCode(...b.slice(3).filter(c => c >= 48 && c <= 90)))}</div>`;
+      } else h = `<p>Первый байт <code>${hx(b[0]).slice(2)}</code>. ${b[0] >= 0x40 && b[0] < 0x80 ? 'Это ответ на сервис ' + hx(b[0] - 0x40).slice(2) + ' (минус 0x40).' : 'Похоже на запрос, а не ответ.'}</p>`;
+      out.innerHTML = h;
+    };
+    inp.oninput = run; el.querySelectorAll('[data-x]').forEach(b => (b.onclick = () => { inp.value = b.dataset.x; run(); }));
+    inp.value = '7E8 04 41 0C 1A F8'; run();
+  },
+  trims(el) {
+    const F = { ok: ['Исправен', () => 1.5], leak: ['Подсос воздуха', r => 22 * 800 / r], pump: ['Слабый бензонасос', r => 2 + 20 * Math.pow((r - 800) / 3200, 1.5)], inj: ['Течёт форсунка', r => -16 + 7 * (r - 800) / 3200] };
+    el.innerHTML = `<div class="w"><div class="seg2">${Object.entries(F).map(([k, [n]], i) => `<button data-f="${k}" class="${i ? '' : 'active'}">${n}</button>`).join('')}</div>
+      <label class="l">Обороты: <span id="rv">800</span> об/мин</label><input type="range" min="800" max="4000" step="100" value="800">
+      <div class="out"></div></div>`;
+    let f = 'ok'; const rng = el.querySelector('input'), out = el.querySelector('.out');
+    const run = () => {
+      const r = +rng.value, v = Math.round(F[f][1](r) * 10) / 10, st = trimState(v);
+      el.querySelector('#rv').textContent = r;
+      const col = st === 'ok' ? 'var(--ok)' : st === 'warn' ? 'var(--warn)' : 'var(--bad)';
+      out.innerHTML = `<div>LTFT + STFT: <span class="big" style="color:${col}">${v > 0 ? '+' : ''}${v} %</span></div>
+        <div style="color:var(--muted);margin-top:4px">${v > 10 ? 'ЭБУ добавляет топливо → смесь была бедной' : v < -10 ? 'ЭБУ убавляет топливо → смесь была богатой' : 'В пределах нормы'}</div>
+        <div style="margin-top:8px;font-size:13px">Подвигайте обороты: ${f === 'leak' ? 'на оборотах коррекция уходит — доля «лишнего» воздуха падает.' : f === 'pump' ? 'на холостых норма, под нагрузкой насос не успевает.' : f === 'inj' ? 'лишнее топливо везде, сильнее на холостых.' : 'коррекция около нуля на любых оборотах.'}</div>`;
+    };
+    el.querySelectorAll('[data-f]').forEach(b => (b.onclick = () => { f = b.dataset.f; el.querySelectorAll('[data-f]').forEach(x => x.classList.toggle('active', x === b)); run(); }));
+    rng.oninput = run; run();
+  },
+  isotp(el) {
+    const fr = (id, pci, data, note) => `<div class="frame"><span class="id">${id}</span> <span class="pci">${pci}</span> <span class="dt">${data}</span></div><div style="font-size:12.5px;color:var(--muted);margin:0 0 6px">${note}</div>`;
+    el.innerHTML = `<div class="w">
+      ${fr('7E8', '04', '41 0C 1A F8 AA AA AA', '<b>0</b>x — одиночный кадр, 4 байта данных (AA — заполнитель)')}
+      <div style="margin:10px 0 4px;font-size:13px">VIN (20 байт) — 3 кадра:</div>
+      ${fr('7E8', '10 14', '49 02 01 58 57 42', '<b>1</b>x — первый кадр, всего 0x14 = 20 байт')}
+      ${fr('7E8', '21', '4A 46 36 39 56 44 4C', '<b>2</b>1 — продолжение №1')}
+      ${fr('7E8', '22', '41 30 30 30 31 32 33', '<b>2</b>2 — продолжение №2')}
+      <div style="font-size:13px;margin-top:8px">Между первым и следующими кадрами телефон (адаптер) отправляет кадр управления потоком <code>30</code> — «давай дальше». ELM327 делает это сам.</div></div>`;
+  },
+};
+
+/* ---------------- старт ---------------- */
+checkEnv(); renderModelNote(); renderLearnHome();
+log('--', 'AvtoDiag готов. Подключитесь на вкладке «Связь».');
+
+</script>
+</body>
+</html>
